@@ -301,6 +301,7 @@ struct PasteSheet: View {
             Form {
                 Section {
                     TextEditor(text: $text)
+                        .onAppear { if text.isEmpty, let t = Clipboard.text() { text = String(t.prefix(Poweramp.fileMax)) } }
                         .font(.body.monospaced())
                         .frame(minHeight: 220)
                         .autocorrectionDisabled()

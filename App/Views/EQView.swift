@@ -237,10 +237,10 @@ private struct EQToolbar: ToolbarContent {
             Button("Redo", systemImage: "arrow.uturn.forward") { studio.redo() }
                 .disabled(!studio.canRedo)
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-            Menu("More", systemImage: "ellipsis") {
-                Button("Paste an EQ's Text…", systemImage: "text.badge.plus") { studio.pasteAsked = true }
-                ThemePicker().pickerStyle(.menu)
-                if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
+            if Device.hasPointer {
+                Menu("More", systemImage: "ellipsis") {
+                    Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
+                }
             }
         }
         if studio.live.on {
@@ -425,10 +425,8 @@ private struct ToolStrip: View {
                 }
                 Tool(title: "Copy", icon: "doc.on.doc", on: false) { studio.copyEQ() }
                     .help("The EQ as a preset's text")
-                Tool(title: "Paste", icon: "doc.on.clipboard", on: false) {
-                    if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
-                }
-                .help("A preset's text or Poweramp's from the clipboard")
+                Tool(title: "Paste", icon: "doc.on.clipboard", on: false) { studio.pasteAsked = true }
+                    .help("Paste an EQ: a preset's text or Poweramp's, from the clipboard or typed")
                 Tool(title: "Reset", icon: "arrow.counterclockwise", on: false) { confirmReset = true }
                     .help("Start over with 10 flat bands")
             }
