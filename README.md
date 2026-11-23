@@ -54,7 +54,6 @@
 - Hear it live, EQ on or off on the Q2, and what went wrong with a retry
 - Sign in by scanning the Q2's code or with its PIN; on your Wi-Fi or over [Tailscale](https://github.com/js-surya/q2-tailscale), whichever answers
 - Light or dark, an accent of your choice, keyboard shortcuts on an iPad
-- About credits everyone whose work it stands on
 
 ## Download
 
@@ -108,6 +107,8 @@ Bug reports and ideas are welcome. Please use the [issue forms](../../issues/new
 [CONTRIBUTING.md](.github/CONTRIBUTING.md) before opening a pull request.
 
 ## Credits
+
+Made with ❤️ by [Surya JS](https://github.com/js-surya).
 
 - **[EQ Studio](https://github.com/DiamondBond/q2-eq-studio)** by [DiamondBond](https://github.com/DiamondBond), GPL-3.0: every feature here, the API it talks to, and the icon, which is EQ Studio's own
 - **[Q2 Pod](https://github.com/DiamondBond/q2-pod)** by DiamondBond and its contributors: the firmware that plays the EQ
