@@ -12,6 +12,12 @@ struct GraphView: View {
     @State private var dragging: Band.ID?
     @State private var frozenRange: Double?
     @State private var pinchQ: Double?
+    @State private var pull: Pull? // the band a pull on the curve took, and where it started
+
+    private struct Pull {
+        let id: Band.ID
+        let freq, gain: Double
+    }
 
     private static let gap = EdgeInsets(top: 10, leading: 34, bottom: 22, trailing: 10)
     private static let freqLines: [Double] = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
@@ -97,6 +103,21 @@ struct GraphView: View {
                 }
             }
             .overlay {
+                // The curve itself can be taken: a band of touch along the line (36 pt) pulls the band
+                // that shapes it most there. Off the line the page scrolls.
+                if interactive {
+                    CurveBand(points: freqs.indices.map { k in
+                        CGPoint(x: s.x(freqs[k]), y: s.y(min(max(points[k].left, -range), range)))
+                    })
+                    .fill(Color.clear)
+                    .contentShape(CurveBand(points: freqs.indices.map { k in
+                        CGPoint(x: s.x(freqs[k]), y: s.y(min(max(points[k].left, -range), range)))
+                    }))
+                    .gesture(curveDrag(s))
+                    .accessibilityHidden(true)
+                }
+            }
+            .overlay {
                 // Each dot is a handle a finger can take (44 pt): only a drag that starts on one moves a
                 // band, so a swipe anywhere else on the graph scrolls the page.
                 if interactive {
@@ -177,6 +198,49 @@ struct GraphView: View {
         return best?.0
     }
 
+    /// Which band a touch on the curve at f belongs to: the one whose own curve is loudest there, or,
+    /// where none changes the sound much, the nearest by frequency.
+    private func bandAt(_ f: Double) -> Band.ID? {
+        let bands = studio.preset.bands.filter(\.on)
+        if let loud = bands.max(by: { abs(bandResponse($0, at: f)) < abs(bandResponse($1, at: f)) }),
+           abs(bandResponse(loud, at: f)) > 0.5 {
+            return loud.id
+        }
+        return studio.preset.bands.min(by: { abs(log10($0.freq / f)) < abs(log10($1.freq / f)) })?.id
+    }
+
+    /// A pull on the curve: the band under it moves by as much as the finger, up and down its gain,
+    /// along its frequency (a Bass or Treble knob only up and down).
+    private func curveDrag(_ s: Scale) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
+            .onChanged { v in
+                if pull == nil {
+                    guard let id = bandAt(s.freq(v.startLocation.x)), let i = studio.band(id) else { return }
+                    let b = studio.preset.bands[i]
+                    pull = Pull(id: id, freq: b.freq, gain: b.gain)
+                    dragging = id
+                    studio.selected = id
+                    frozenRange = s.range
+                }
+                guard let p = pull, let i = studio.band(p.id), hypot(v.translation.width, v.translation.height) > 2 else { return }
+                let knob = Knob.of(studio.preset.bands[i]) != nil
+                let dGain = s.db(v.location.y) - s.db(v.startLocation.y)
+                let ratio = s.freq(v.location.x) / s.freq(v.startLocation.x)
+                let gain = min(max(p.gain + dGain, knob ? 0 : -EQ.gainMax), knob ? Knob.maxGain : EQ.gainMax)
+                let freq = min(max(p.freq * ratio, EQ.freqMin), EQ.freqMax)
+                studio.change("drag-\(p.id)") { preset in
+                    guard let k = preset.bands.firstIndex(where: { $0.id == p.id }) else { return }
+                    if !knob { preset.bands[k].freq = (freq * 100).rounded() / 100 }
+                    preset.bands[k].gain = (gain * 10).rounded() / 10
+                }
+            }
+            .onEnded { _ in
+                pull = nil
+                dragging = nil
+                frozenRange = nil
+            }
+    }
+
     /// A dot's own drag: its band follows the finger, the dB range held still until it lets go.
     private func handleDrag(_ id: Band.ID, _ s: Scale) -> some Gesture {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
@@ -222,5 +286,15 @@ struct GraphView: View {
             guard nearest(v.location, s) == nil, s.rect.contains(v.location) else { return }
             studio.addBand(freq: (s.freq(v.location.x)).rounded(), gain: (s.db(v.location.y) * 10).rounded() / 10)
         }
+    }
+}
+
+/// The curve as a band of touch: its line widened to 36 pt, so a finger on or near it takes it.
+private struct CurveBand: Shape {
+    let points: [CGPoint]
+    func path(in rect: CGRect) -> Path {
+        var line = Path()
+        for (k, p) in points.enumerated() { k == 0 ? line.move(to: p) : line.addLine(to: p) }
+        return line.strokedPath(StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
     }
 }
