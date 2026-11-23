@@ -139,6 +139,7 @@ struct RootView: View {
                 .onAppear { if tab == .search { studio.searchAsked = UUID() } }
                 #if DEBUG
                 .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
+                .task { if ProcessInfo.processInfo.environment["EQS_TOAST"] != nil { try? await Task.sleep(for: .seconds(2)); studio.say("“Meze Alba” is playing.", undo: true) } }
                 #endif
                 .onChange(of: studio.tabAsked) {
                     if let i = studio.tabAsked { tab = [Tab.eq, .search, .response, .card, .search][i]; studio.tabAsked = nil }
@@ -164,7 +165,7 @@ struct RootView: View {
                 }
             }
         }
-        .overlay(alignment: .bottom) { ToastView() }
+        .overlay(alignment: .top) { ToastView() }
         .alert(studio.notice?.title ?? "", isPresented: Binding(get: { studio.notice != nil }, set: { if !$0 { studio.notice = nil } })) {
             Button("OK") {}
         } message: {
@@ -300,8 +301,8 @@ struct ToastView: View {
             .padding(.horizontal, 16).padding(.vertical, 10)
             .glassEffect(.regular, in: .capsule)
             .padding(.horizontal, 20)
-            .padding(.bottom, 110)
-            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .padding(.top, 60) // under the bar's buttons, over the title for its few seconds
+            .transition(.move(edge: .top).combined(with: .opacity))
             .id(t.id)
             .onTapGesture { studio.toast = nil }
         }

@@ -92,6 +92,7 @@ struct CardView: View {
             }
         }
         .navigationTitle("Card")
+        .settingsButton()
         .onAppear(perform: asked)
         .onChange(of: studio.cardAsked) { asked() }
         .sheet(isPresented: $pasting) { PasteSheet() }

@@ -77,6 +77,7 @@ struct ResponseView: View {
             }
         }
         .navigationTitle("Response")
+        .settingsButton()
         .searchFocused($searchFocus)
         .onChange(of: studio.searchAsked) { takeSearch() }
         .onAppear { takeSearch() }

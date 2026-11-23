@@ -110,6 +110,7 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Presets")
+        .settingsButton()
         #if DEBUG
         .navigationDestination(item: $shownEntry) { entry in PresetPage(entry: entry) {} }
         .onChange(of: studio.catalogue?.presets.count) {
