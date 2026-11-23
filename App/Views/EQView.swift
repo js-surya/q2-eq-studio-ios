@@ -109,7 +109,7 @@ struct EQView: View {
         // Room under the last row, so it scrolls clear of the tab bar and the live status.
         .contentMargins(.bottom, 120, for: .scrollContent)
         }
-        .navigationTitle("EQ")
+        .navigationTitle("EQ Studio")
         .settingsButton()
         .toolbar { EQToolbar() }
         .inspector(isPresented: Binding(get: { studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {

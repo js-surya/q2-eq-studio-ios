@@ -146,7 +146,7 @@ struct ShownBar: View {
                     Label {
                         VStack(alignment: .leading, spacing: 1) {
                             Text(shown.name).font(.subheadline.weight(.semibold)).lineLimit(1)
-                            Text("Measured by \(shown.by)\(r.target.isEmpty ? "" : " · \(r.target)")").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            Text(r.target.isEmpty ? shown.by : "\(shown.by) → \(r.target)").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
                         }
                     } icon: {
                         Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
@@ -155,19 +155,39 @@ struct ShownBar: View {
                 .buttonStyle(.plain)
                 .help("\(shown.name), measured by \(shown.by). Take it off the graph.")
                 .accessibilityLabel("Take \(shown.name) off the graph")
+                .layoutPriority(1)
                 Spacer(minLength: 4)
                 if !r.target.isEmpty {
-                    Button {
-                        Task { await autoEQ() }
-                    } label: {
-                        if r.fitting { ProgressView().controlSize(.small) } else { Label("AutoEQ", systemImage: "wand.and.stars") }
+                    // Labelled while the name fits beside it; the icon alone when it doesn't.
+                    ViewThatFits(in: .horizontal) {
+                        fit(labelled: true).fixedSize()
+                        fit(labelled: false)
                     }
-                    .buttonStyle(.glassProminent)
-                    .disabled(r.fitting)
-                    .help("Fit the bands to bring \(shown.name) to \(r.target)")
+                    .frame(minWidth: 44, alignment: .trailing)
                 }
             }
         }
+    }
+
+    private func fit(labelled: Bool) -> some View {
+        let r = studio.response
+        return Button {
+            Task { await autoEQ() }
+        } label: {
+            if r.fitting {
+                ProgressView().controlSize(.mini)
+            } else if labelled {
+                Label("AutoEQ", systemImage: "wand.and.stars")
+            } else {
+                Image(systemName: "wand.and.stars").accessibilityLabel("AutoEQ")
+            }
+        }
+        .buttonStyle(.glassProminent)
+        .buttonBorderShape(labelled ? .capsule : .circle)
+        .controlSize(.small)
+        .font(.subheadline.weight(.semibold))
+        .disabled(r.fitting)
+        .help("Fit the bands to bring \(r.shown?.name ?? "it") to \(r.target)")
     }
 
     private func autoEQ() async {
