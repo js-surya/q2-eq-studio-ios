@@ -243,9 +243,9 @@ private struct EQToolbar: ToolbarContent {
                 Button("Paste Preset", systemImage: "doc.on.clipboard") {
                     if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
                 }
-                Toggle("Inspect", systemImage: "scope", isOn: $studio.inspect)
+                if Device.hasPointer { Toggle("Inspect", systemImage: "scope", isOn: $studio.inspect) }
                 ThemePicker().pickerStyle(.menu)
-                Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
+                if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
                 Divider()
                 Button("Start Over with 10 Flat Bands", systemImage: "arrow.counterclockwise", role: .destructive) {
                     studio.replace(with: .flat(name: studio.preset.name))

@@ -53,3 +53,14 @@ enum BandColor {
     static let faint = Color.secondary.opacity(0.5)
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : .accentColor }
 }
+
+/// What this device is: keys and a pointer are a Mac's and an iPad's, not a phone's.
+enum Device {
+    @MainActor static var hasPointer: Bool {
+        #if os(macOS)
+        true
+        #else
+        UIDevice.current.userInterfaceIdiom == .pad
+        #endif
+    }
+}

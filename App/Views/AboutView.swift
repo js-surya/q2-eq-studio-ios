@@ -34,14 +34,14 @@ struct SettingsView: View {
             }
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)
-                Toggle("Inspect", isOn: $studio.inspect)
+                if Device.hasPointer { Toggle("Inspect", isOn: $studio.inspect) }
             } header: {
                 Text("Graph")
             } footer: {
-                Text("Inspect shows a line where the pointer is on the graph, and the gain there, on a Mac or an iPad with a pointer.")
+                if Device.hasPointer { Text("Inspect shows a line where the pointer is on the graph, and the gain there.") }
             }
             Section {
-                Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
+                if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
                 NavigationLink(value: "about") {
                     Label("About EQ Studio", systemImage: "info.circle")
                 }
