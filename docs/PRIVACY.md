@@ -17,8 +17,8 @@ server of the app's own.
 - **Response:** when you pick a measurement or a target, the app reads it from [squig.link](https://squig.link),
   without signing in; squig.link sees your IP address, as with any web request. Only which reviewer, target and
   measurement you picked is kept, on your device.
-- **About:** the list of Q2 Pod's contributors is read from GitHub's public API (`api.github.com`) without signing
-  in; GitHub sees your IP address. The last list is kept on your device to show offline.
+- **About:** the pictures of the people credited come from `github.com`, which sees your IP address, as with any
+  web request.
 - **Your EQ, settings, recent presets and the app's look** are kept on your device only.
 - **Files** you open or share go where you choose; the app keeps no copy.
 - **Clipboard:** the app reads it only when you tap Paste.

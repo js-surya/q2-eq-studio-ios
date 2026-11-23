@@ -25,7 +25,7 @@
   <img src="docs/screenshots/presets.png" width="180" alt="Presets: recent and popular, filtered by kind">
   <img src="docs/screenshots/preset.png" width="180" alt="A preset's curve, read only, before Apply">
   <img src="docs/screenshots/response.png" width="180" alt="Response: a reviewer, a target and their measurements">
-  <img src="docs/screenshots/about.png" width="180" alt="About: the credits and Q2 Pod's contributors">
+  <img src="docs/screenshots/about.png" width="180" alt="About: the developer and credits">
 </p>
 
 > This app talks to EQ Studio on the Q2 and does what EQ Studio's page does. Its EQ logic is EQ Studio's,
@@ -54,7 +54,7 @@
 - Hear it live, EQ on or off on the Q2, and what went wrong with a retry
 - Sign in by scanning the Q2's code or with its PIN; on your Wi-Fi or over [Tailscale](https://github.com/js-surya/q2-tailscale), whichever answers
 - Light or dark, an accent of your choice, keyboard shortcuts on an iPad
-- About credits everyone, with every Q2 Pod contributor
+- About credits everyone whose work it stands on
 
 ## Download
 
@@ -99,7 +99,7 @@ scripts/test.sh
 ## Privacy
 
 The app collects no data: no analytics, tracking or ads, and no server of its own. It talks to EQ Studio on your
-Q2, reads measurements from squig.link when you pick one, and reads Q2 Pod's contributor list from GitHub for
+Q2, reads measurements from squig.link when you pick one, and shows the credited people's GitHub pictures in
 About. Details are in the [privacy policy](docs/PRIVACY.md).
 
 ## Contributing

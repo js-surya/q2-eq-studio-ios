@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// About: what this is, the Q2 it's signed in to, everyone whose work it stands on, and every
-// contributor to Q2 Pod by their GitHub name, read from GitHub (the list built in when offline).
+// Settings, and About: what this is, who made it, and everyone whose work it stands on.
 import SwiftUI
 
 /// Settings: the Q2 this device is signed in to, the look, the graph's extras, the keys, and About.
@@ -97,11 +96,8 @@ struct SettingsView: View {
     }
 }
 
-/// About: what this is, who made it, whose work it stands on, and every contributor to Q2 Pod by their
-/// GitHub name, read from GitHub (the list built in when offline).
+/// About: what this is, who made it, and whose work it stands on.
 struct AboutView: View {
-    @State private var contributors: [Contributor] = Contributor.kept
-
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
@@ -128,21 +124,12 @@ struct AboutView: View {
             }
 
             Section("Developer") {
-                Person(login: Contributor.developer, name: "Surya JS", role: "EQ Studio for iPhone and iPad")
+                Person(login: "js-surya", name: "Surya JS", role: "EQ Studio for iPhone and iPad")
             }
 
             Section("Built On") {
                 Person(login: "DiamondBond", role: "EQ Studio · Q2 Pod")
                 Person(login: "tyleree", role: "Q2 Theme Studio")
-            }
-
-            Section {
-                ContributorTicker(people: contributors.filter { !Contributor.named.contains($0.login.lowercased()) })
-                    .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
-            } header: {
-                Text("Q2 Pod Contributors")
-            } footer: {
-                Text("Everyone else who has contributed to Q2 Pod on GitHub, the firmware EQ Studio runs on. Thank you.")
             }
 
             Section {
@@ -173,7 +160,6 @@ struct AboutView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("About")
-        .task { if let live = await Contributor.fetch() { contributors = live } }
     }
 }
 
@@ -242,106 +228,6 @@ struct Acknowledgement: Identifiable {
     ]
 }
 
-struct Contributor: Identifiable, Codable, Sendable {
-    let login: String
-    var id: String { login }
-    var profile: URL { URL(string: "https://github.com/\(login)")! }
-    var avatar: URL { URL(string: "https://github.com/\(login).png?size=96")! }
-
-    /// This app's developer, on GitHub.
-    static let developer = "js-surya"
-    /// Shown on their own above the rest: the developer, Bond and Tyler.
-    static let named: Set<String> = ["js-surya", "diamondbond", "tyleree"]
-
-    /// Q2 Pod's contributors when this was built, most contributions first.
-    static let builtIn: [Contributor] = [
-        "DiamondBond", "andsuor", "karanthakakr04", "tyleree", "claude", "lampsonlnguyen", "A4Link", "group-a-study",
-        "tnt-accloo", "SlayTheEarth", "js-surya", "m-d-e-v", "polygonfuture", "hadad95", "genieoflamp", "jtliang24",
-        "gukey", "0pac1ty", "harpmudd", "rafaelxaugusto", "czdaniel",
-    ].map { Contributor(login: $0) }
-
-    private static let keptKey = "q2pod-contributors"
-
-    /// The list GitHub gave last time, else the one built in: what shows offline, and until GitHub answers.
-    static var kept: [Contributor] {
-        UserDefaults.standard.data(forKey: keptKey).flatMap { try? JSONDecoder().decode([Contributor].self, from: $0) } ?? builtIn
-    }
-
-    /// GitHub's list today: anyone who has joined since shows too. Kept for next time.
-    static func fetch() async -> [Contributor]? {
-        var all: [Contributor] = []
-        for page in 1...5 {
-            guard let url = URL(string: "https://api.github.com/repos/DiamondBond/q2-pod/contributors?per_page=100&page=\(page)") else { return nil }
-            var r = URLRequest(url: url, timeoutInterval: 10)
-            r.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-            guard let (data, response) = try? await URLSession.shared.data(for: r),
-                  (response as? HTTPURLResponse)?.statusCode == 200,
-                  let list = try? JSONDecoder().decode([Contributor].self, from: data) else { return all.isEmpty ? nil : all }
-            all += list
-            if list.count < 100 { break }
-        }
-        if all.isEmpty { return nil }
-        if let d = try? JSONEncoder().encode(all) { UserDefaults.standard.set(d, forKey: keptKey) }
-        return all
-    }
-}
-
-/// Q2 Pod's other contributors by name, drifting right to left in a loop. A touch holds it, so a name can
-/// be tapped (it opens their GitHub); with Reduce Motion it stands still, a row to swipe.
-private struct ContributorTicker: View {
-    let people: [Contributor]
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var width: CGFloat = 0 // one copy of the row
-    @State private var start = Date()
-    @State private var held: Date?
-    private let speed: CGFloat = 28 // points a second
-
-    var body: some View {
-        if reduceMotion || people.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) { row.padding(.horizontal, 16) }
-        } else {
-            TimelineView(.animation(paused: held != nil)) { context in
-                let now = held ?? context.date
-                let shift = width > 0 ? CGFloat(now.timeIntervalSince(start)) * speed : 0
-                HStack(spacing: 0) {
-                    row.onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-                    row.accessibilityHidden(true)
-                }
-                .offset(x: width > 0 ? -shift.truncatingRemainder(dividingBy: width) : 0)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .clipped()
-            .mask {
-                LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.06),
-                                       .init(color: .black, location: 0.94), .init(color: .clear, location: 1)],
-                               startPoint: .leading, endPoint: .trailing)
-            }
-            .simultaneousGesture(DragGesture(minimumDistance: 0)
-                .onChanged { _ in if held == nil { held = Date() } }
-                .onEnded { _ in
-                    if let h = held { start = start.addingTimeInterval(Date().timeIntervalSince(h)) }
-                    held = nil
-                })
-        }
-    }
-
-    private var row: some View {
-        HStack(spacing: 8) {
-            ForEach(people) { c in
-                Link(destination: c.profile) {
-                    Text(c.login)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, 12).padding(.vertical, 7)
-                        .background(.fill.tertiary, in: .capsule)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.trailing, 8) // the gap before the loop starts again
-        .fixedSize()
-    }
-}
 
 extension View {
     /// The gear at the top of a tab, on an iPhone and an iPad: Settings as a page of that tab, Back to it.
