@@ -2,6 +2,7 @@
 // Signing in to EQ Studio on the Q2: scan its QR code, or type the address and PIN under it.
 import SwiftUI
 #if os(iOS)
+import AVFoundation
 import VisionKit
 #endif
 
@@ -86,10 +87,15 @@ struct ConnectView: View {
         .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.25)) { shown = true } }
         .sheet(isPresented: $typing) { SignInForm() }
         #if os(iOS)
-        .fullScreenCover(isPresented: $scanning) { ScanView() }
+        .fullScreenCover(isPresented: $scanning) {
+            ScanView(typeInstead: { Task { try? await Task.sleep(for: .milliseconds(450)); typing = true } })
+        }
         #endif
         #if DEBUG
-        .onAppear { if ProcessInfo.processInfo.environment["EQS_SIGNIN"] != nil { typing = true } }
+        .onAppear {
+            if ProcessInfo.processInfo.environment["EQS_SIGNIN"] != nil { typing = true }
+            if ProcessInfo.processInfo.environment["EQS_SCAN"] != nil { scanning = true }
+        }
         #endif
     }
 }
@@ -316,51 +322,218 @@ private struct PinBoxes: View {
 private struct ScanView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var typeInstead: () -> Void = {}
     @State private var error: String?
     @State private var busy = false
+    @State private var done = false
+    @State private var shake = 0
+    @State private var torch = false
+
+    private static let size: CGFloat = 260
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            QRScanner { text in
-                guard !busy else { return }
-                guard let link = Q2Link(scanned: text) else {
-                    error = "That isn't EQ Studio's code."
-                    return
+        ZStack {
+            #if DEBUG
+            if ProcessInfo.processInfo.environment["EQS_SCAN"] != nil {
+                // The simulator has no camera: a stand-in, for a look at the screen.
+                LinearGradient(colors: [Color(white: 0.25), Color(white: 0.1)], startPoint: .top, endPoint: .bottom).ignoresSafeArea()
+            } else {
+                camera
+            }
+            #else
+            camera
+            #endif
+            Viewfinder(size: Self.size, state: done ? .done : error != nil ? .wrong : busy ? .busy : .looking,
+                       moving: !reduceMotion && !busy && !done, shake: shake)
+                .ignoresSafeArea()
+            VStack(spacing: 0) {
+                HStack {
+                    Spacer()
+                    Button("Close", systemImage: "xmark") { dismiss() }
+                        .labelStyle(.iconOnly)
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
                 }
-                busy = true
-                Task {
-                    do {
-                        _ = try await Q2Client(link: link).state()
-                        studio.connect(link)
-                        dismiss()
-                    } catch {
-                        self.error = error.localizedDescription
-                        busy = false
+                .padding(.horizontal, 20)
+                VStack(spacing: 6) {
+                    Text("Scan the Q2's Code").font(.system(.title2, design: .rounded, weight: .bold))
+                    Text("On the Q2: Library → Apps → EQ Studio").font(.subheadline).foregroundStyle(.white.opacity(0.75))
+                }
+                .foregroundStyle(.white)
+                .padding(.top, 8)
+                Spacer()
+                card
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
+            }
+        }
+        .sensoryFeedback(.success, trigger: done) { _, new in new }
+        .sensoryFeedback(.error, trigger: shake)
+        .onDisappear { setTorch(false) }
+    }
+
+    private var camera: some View {
+        QRScanner { text in
+            guard !busy, !done, error == nil else { return }
+            guard let link = Q2Link(scanned: text) else {
+                wrong("That isn't EQ Studio's code. Look for it on the Q2's screen, in EQ Studio.")
+                return
+            }
+            busy = true
+            Task {
+                do {
+                    _ = try await Q2Client(link: link).state()
+                    withAnimation(.spring(duration: 0.4, bounce: 0.4)) { done = true }
+                    try? await Task.sleep(for: .milliseconds(700))
+                    studio.connect(link)
+                    dismiss()
+                } catch {
+                    busy = false
+                    wrong(error.localizedDescription)
+                }
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    private var card: some View {
+        VStack(spacing: 14) {
+            Group {
+                if done {
+                    Label("Signed in", systemImage: "checkmark.circle.fill").foregroundStyle(.green)
+                } else if busy {
+                    HStack(spacing: 10) { ProgressView(); Text("Signing in…") }
+                } else if let error {
+                    Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                } else {
+                    Text("Hold the camera over the code on the Q2. It signs in as soon as it sees it.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .font(.subheadline)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            HStack(spacing: 10) {
+                Button { setTorch(!torch) } label: {
+                    Label(torch ? "Light On" : "Light", systemImage: torch ? "flashlight.on.fill" : "flashlight.off.fill")
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+                Button {
+                    dismiss()
+                    typeInstead()
+                } label: {
+                    Label("Type PIN", systemImage: "keyboard").lineLimit(1).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.glass)
+            }
+            .controlSize(.large)
+        }
+        .padding(18)
+        .frame(maxWidth: 440)
+        .glassEffect(.regular, in: .rect(cornerRadius: 26))
+        .animation(.default, value: error)
+        .animation(.default, value: busy)
+    }
+
+    /// The wrong code, or the Q2 not answering: said, the brackets shaken, scanning again shortly.
+    private func wrong(_ text: String) {
+        withAnimation(.default) { error = text }
+        shake += 1
+        Task {
+            try? await Task.sleep(for: .seconds(3))
+            withAnimation(.default) { error = nil }
+        }
+    }
+
+    private func setTorch(_ on: Bool) {
+        guard let d = AVCaptureDevice.default(for: .video), d.hasTorch, (try? d.lockForConfiguration()) != nil else { return }
+        d.torchMode = on ? .on : .off
+        d.unlockForConfiguration()
+        torch = on
+    }
+}
+
+/// The dimmed camera with a rounded window, its corners bracketed: white while looking, a line sweeping
+/// across; green with a check once signed in; red, shaken, for the wrong code.
+private struct Viewfinder: View {
+    enum State { case looking, busy, done, wrong }
+    let size: CGFloat
+    let state: State
+    let moving: Bool
+    let shake: Int
+
+    var body: some View {
+        GeometryReader { geo in
+            let rect = CGRect(x: (geo.size.width - size) / 2, y: (geo.size.height - size) / 2 - 20, width: size, height: size)
+            let colour: Color = state == .done ? .green : state == .wrong ? .red : .white
+            ZStack {
+                // The dimming, with the window cut out.
+                Path { p in
+                    p.addRect(CGRect(origin: .zero, size: geo.size))
+                    p.addRoundedRect(in: rect, cornerSize: CGSize(width: 32, height: 32))
+                }
+                .fill(Color.black.opacity(0.55), style: FillStyle(eoFill: true))
+
+                Brackets(rect: rect)
+                    .stroke(colour, style: StrokeStyle(lineWidth: 5, lineCap: .round, lineJoin: .round))
+                    .shadow(color: colour.opacity(0.7), radius: 8)
+                    .modifier(Shake(times: CGFloat(shake)))
+
+                if moving {
+                    TimelineView(.animation) { context in
+                        let t = context.date.timeIntervalSinceReferenceDate
+                        let y = rect.minY + 24 + (rect.height - 48) * (0.5 + 0.5 * sin(t * 1.6))
+                        Capsule()
+                            .fill(LinearGradient(colors: [.clear, Color.accentColor, .clear], startPoint: .leading, endPoint: .trailing))
+                            .frame(width: rect.width - 40, height: 3)
+                            .shadow(color: .accentColor, radius: 6)
+                            .position(x: rect.midX, y: y)
                     }
                 }
-            }
-            .ignoresSafeArea()
-
-            VStack(spacing: 14) {
-                if busy {
-                    ProgressView("Signing in…")
-                } else {
-                    Text(error ?? "Point the camera at the code on the Q2.")
-                        .multilineTextAlignment(.center)
+                if state == .done {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 72, weight: .semibold))
+                        .foregroundStyle(.white, .green)
+                        .position(x: rect.midX, y: rect.midY)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
-            .padding(18)
-            .frame(maxWidth: 420)
-            .glassEffect(.regular, in: .rect(cornerRadius: 22))
-            .padding(24)
+            .animation(.spring(duration: 0.35), value: state == .done)
         }
-        .overlay(alignment: .topTrailing) {
-            Button("Close", systemImage: "xmark") { dismiss() }
-                .labelStyle(.iconOnly)
-                .buttonStyle(.glass)
-                .controlSize(.large)
-                .padding(20)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The viewfinder's four corners.
+private struct Brackets: Shape {
+    let rect: CGRect
+    func path(in _: CGRect) -> Path {
+        let r: CGFloat = 32, l: CGFloat = 46
+        var p = Path()
+        for (corner, dx, dy) in [(CGPoint(x: rect.minX, y: rect.minY), 1.0, 1.0), (CGPoint(x: rect.maxX, y: rect.minY), -1.0, 1.0),
+                                 (CGPoint(x: rect.minX, y: rect.maxY), 1.0, -1.0), (CGPoint(x: rect.maxX, y: rect.maxY), -1.0, -1.0)] {
+            p.move(to: CGPoint(x: corner.x, y: corner.y + dy * l))
+            p.addLine(to: CGPoint(x: corner.x, y: corner.y + dy * r))
+            p.addQuadCurve(to: CGPoint(x: corner.x + dx * r, y: corner.y), control: corner)
+            p.addLine(to: CGPoint(x: corner.x + dx * l, y: corner.y))
         }
+        return p
+    }
+}
+
+/// A side-to-side shake, once for each count.
+private struct Shake: GeometryEffect {
+    var times: CGFloat
+    var animatableData: CGFloat {
+        get { times }
+        set { times = newValue }
+    }
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 10 * sin(times * .pi * 4), y: 0))
     }
 }
 
@@ -370,7 +543,7 @@ private struct QRScanner: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> DataScannerViewController {
         let vc = DataScannerViewController(recognizedDataTypes: [.barcode(symbologies: [.qr])], qualityLevel: .balanced,
                                            recognizesMultipleItems: false, isHighFrameRateTrackingEnabled: false,
-                                           isHighlightingEnabled: true)
+                                           isHighlightingEnabled: false)
         vc.delegate = context.coordinator
         try? vc.startScanning()
         return vc
