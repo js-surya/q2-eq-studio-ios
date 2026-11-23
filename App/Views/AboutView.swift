@@ -98,8 +98,8 @@ struct AboutView: View {
             }
 
             Section("Built On") {
-                Person(login: "DiamondBond", name: "Bond", role: "EQ Studio and Q2 Pod: every feature here, and the icon")
-                Person(login: "tyleree", name: "Tyler", role: "Q2 Theme Studio: the EQ engine this app runs")
+                Person(login: "DiamondBond", role: "EQ Studio and Q2 Pod: every feature here, and the icon")
+                Person(login: "tyleree", role: "Q2 Theme Studio: the EQ engine this app runs")
             }
 
             Section {
