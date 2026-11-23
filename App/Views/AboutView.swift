@@ -84,7 +84,7 @@ struct AboutView: View {
                         .accessibilityHidden(true)
                     Text("EQ Studio").font(.title2.bold())
                     Text(version).font(.subheadline).foregroundStyle(.secondary)
-                    Text("A native app for EQ Studio, the Q2 Pod app by Bond. It edits the same EQ, through EQ Studio on your Q2.")
+                    Text("A native app for EQ Studio, the Q2 Pod app by DiamondBond. It edits the same EQ, through EQ Studio on your Q2.")
                         .font(.callout)
                         .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
@@ -191,11 +191,11 @@ struct Acknowledgement: Identifiable {
     var id: String { title }
 
     static let all: [Acknowledgement] = [
-        .init(title: "EQ Studio", detail: "By Bond (DiamondBond). The Q2 Pod app this one talks to, every feature here, and the app's icon, which is EQ Studio's own.",
+        .init(title: "EQ Studio", detail: "By DiamondBond. The Q2 Pod app this one talks to, every feature here, and the app's icon, which is EQ Studio's own.",
               licence: "GPL-3.0", url: URL(string: "https://github.com/DiamondBond/q2-eq-studio")!),
-        .init(title: "Q2 Pod", detail: "By Bond and the Q2 Pod community. The firmware that plays the EQ live.",
+        .init(title: "Q2 Pod", detail: "By DiamondBond and the Q2 Pod community. The firmware that plays the EQ live.",
               licence: "", url: URL(string: "https://github.com/DiamondBond/q2-pod")!),
-        .init(title: "Q2 Theme Studio", detail: "By Tyler (tyleree). EQ Studio's EQ, and its logic ported here.",
+        .init(title: "Q2 Theme Studio", detail: "By tyleree. EQ Studio's EQ, and its logic ported here.",
               licence: "GPL-3.0", url: URL(string: "https://github.com/tyleree")!),
         .init(title: "AutoEq", detail: "By Jaakko Pasanen. The presets, from measurements by Crinacle, oratory1990 and others.",
               licence: "MIT", url: URL(string: "https://github.com/jaakkopasanen/AutoEq")!),
