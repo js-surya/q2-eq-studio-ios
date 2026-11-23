@@ -12,6 +12,7 @@ struct SearchView: View {
     @State private var picked: String?
     @State private var recents: [Recent] = Recent.load()
     @FocusState private var searchFocus: Bool
+    @State private var shownEntry: Catalogue.Entry? // debug: EQS_PRESET opens a preset's page
     var goToEQ: () -> Void = {}
 
     private static let rows = 25
@@ -59,11 +60,17 @@ struct SearchView: View {
                 if !recents.isEmpty {
                     Section {
                         ForEach(recents) { item in
-                            Button { replay(item) } label: {
-                                Row(title: item.name, detail: item.detail, icon: item.measurement ? "waveform.path.ecg" : "clock.arrow.circlepath", on: false,
-                                    busy: item.measurement && r.fetching == item.name)
+                            if let key = item.preset, let entry = studio.catalogue?.presets.first(where: { $0.id == key }) {
+                                NavigationLink(value: entry) {
+                                    Row(title: item.name, detail: item.detail, icon: "clock.arrow.circlepath", on: studio.playing == key)
+                                }
+                            } else {
+                                Button { replay(item) } label: {
+                                    Row(title: item.name, detail: item.detail, icon: "waveform.path.ecg", on: false,
+                                        busy: r.fetching == item.name)
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     } header: {
                         HStack {
@@ -103,6 +110,20 @@ struct SearchView: View {
             }
         }
         .navigationTitle("Presets")
+        #if DEBUG
+        .navigationDestination(item: $shownEntry) { entry in PresetPage(entry: entry) {} }
+        .onChange(of: studio.catalogue?.presets.count) {
+            if let q = ProcessInfo.processInfo.environment["EQS_PRESET"], shownEntry == nil {
+                shownEntry = studio.catalogue?.search(q, limit: 1).first
+            }
+        }
+        #endif
+        .navigationDestination(for: Catalogue.Entry.self) { entry in
+            PresetPage(entry: entry) {
+                remember(Recent(name: entry.name, detail: "\(entry.source) · \(entry.type.replacingOccurrences(of: "-", with: " ").capitalized)",
+                                preset: entry.id))
+            }
+        }
         .searchable(text: $query, prompt: "Headphones and IEMs")
         .searchFocused($searchFocus)
         .onChange(of: studio.searchAsked) { takeSearch() }
@@ -127,17 +148,12 @@ struct SearchView: View {
         }
     }
 
+    /// A preset's row: it opens the preset's page, to look at before applying.
     private func presetRow(_ entry: Catalogue.Entry) -> some View {
-        Button {
-            studio.apply(entry)
-            picked = entry.id
-            remember(Recent(name: entry.name, detail: "\(entry.source) · \(entry.type.replacingOccurrences(of: "-", with: " ").capitalized)",
-                            preset: entry.id))
-        } label: {
+        NavigationLink(value: entry) {
             Row(title: entry.name, detail: "\(entry.source) · \(entry.type.replacingOccurrences(of: "-", with: " ").capitalized)",
-                icon: "headphones", on: picked == entry.id)
+                icon: "headphones", on: studio.playing == entry.id)
         }
-        .buttonStyle(.plain)
     }
 
     private func remember(_ item: Recent) {
@@ -211,5 +227,134 @@ struct Recent: Codable, Identifiable {
     }
     static func save(_ list: [Recent]) {
         if let d = try? JSONEncoder().encode(list) { UserDefaults.standard.set(d, forKey: key) }
+    }
+}
+
+/// A preset's page: its curve, read only, over the EQ playing now; its bands; and Apply, which plays it.
+struct PresetPage: View {
+    @Environment(Studio.self) private var studio
+    let entry: Catalogue.Entry
+    let applied: () -> Void
+
+    var body: some View {
+        let preset = (try? parse(entry.text, name: entry.name).get()).map(normalize)
+        let playing = studio.playing == entry.id
+        List {
+            if let preset {
+                Section {
+                    PreviewGraph(preset: preset, now: studio.preset)
+                        .frame(height: 240)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                } footer: {
+                    HStack(spacing: 14) {
+                        Label("This preset", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
+                        Label("Playing now", systemImage: "circle.dashed").foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    .imageScale(.small)
+                }
+                Section {
+                    LabeledContent("Measured by", value: entry.source)
+                    LabeledContent("Kind", value: entry.type.replacingOccurrences(of: "-", with: " ").capitalized)
+                    LabeledContent("Preamp", value: preset.auto ? "Auto" : Format.dB(preset.preamp))
+                }
+                Section("\(preset.bands.count) Bands") {
+                    ForEach(Array(preset.bands.enumerated()), id: \.offset) { i, band in
+                        HStack(spacing: 12) {
+                            Text("\(i + 1)")
+                                .font(.footnote.weight(.bold).monospacedDigit())
+                                .foregroundStyle(.white)
+                                .frame(width: 26, height: 26)
+                                .background(BandColor.of(band), in: .circle)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(Format.hertz(band.freq)).font(.body.weight(.semibold).monospacedDigit())
+                                Text("\(Format.typeName(band.type)) · \(Format.q(band.q))").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Text(Format.dB(band.gain)).monospacedDigit()
+                        }
+                    }
+                }
+                Section {
+                } footer: {
+                    Text(entry.source == "" ? "" : "From the AutoEq project, computed from \(entry.source)'s measurement.")
+                }
+            } else {
+                ContentUnavailableView("This preset can't be read", systemImage: "exclamationmark.triangle")
+            }
+        }
+        .navigationTitle(entry.name)
+        .toolbarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            Button {
+                studio.apply(entry)
+                applied()
+            } label: {
+                Label(playing ? "Playing on the Q2" : "Apply", systemImage: playing ? "checkmark.circle.fill" : "play.fill")
+                    .font(.headline)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 4)
+            }
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
+            .disabled(playing || preset == nil)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+        }
+    }
+}
+
+/// A preset's curve to look at: its curve and numbered dots, the EQ playing now dashed behind; nothing moves.
+struct PreviewGraph: View {
+    let preset: Preset
+    let now: Preset
+
+    var body: some View {
+        let freqs = Plot.freqs
+        let curve = responses(preset, at: freqs)
+        let current = responses(now, at: freqs)
+        var most = 0.0
+        for p in curve { most = max(most, abs(p.left), abs(p.right)) }
+        for p in current { most = max(most, abs(p.left)) }
+        let range = min(max(ceil((most + 1) / 6) * 6, 12), 30)
+        return Canvas { ctx, size in
+            let rect = CGRect(x: 34, y: 10, width: max(size.width - 44, 1), height: max(size.height - 32, 1))
+            let lo = log10(EQ.freqMin), span = log10(EQ.freqMax) - lo
+            let x = { (f: Double) in rect.minX + rect.width * CGFloat((log10(f) - lo) / span) }
+            let y = { (db: Double) in rect.midY - rect.height / 2 * CGFloat(min(max(db, -range), range) / range) }
+            let grid = Color.secondary.opacity(0.18)
+            for f in [20.0, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000] {
+                var p = Path(); p.move(to: CGPoint(x: x(f), y: rect.minY)); p.addLine(to: CGPoint(x: x(f), y: rect.maxY))
+                ctx.stroke(p, with: .color(grid), lineWidth: 0.5)
+                ctx.draw(Text(Format.gridHertz(f)).font(.system(size: 9, weight: .medium)).foregroundStyle(.secondary), at: CGPoint(x: x(f), y: rect.maxY + 11))
+            }
+            var db = -range
+            while db <= range + 0.01 {
+                var p = Path(); p.move(to: CGPoint(x: rect.minX, y: y(db))); p.addLine(to: CGPoint(x: rect.maxX, y: y(db)))
+                ctx.stroke(p, with: .color(db == 0 ? Color.secondary.opacity(0.5) : grid), lineWidth: db == 0 ? 1 : 0.5)
+                ctx.draw(Text(db == 0 ? "0" : db > 0 ? "+\(Int(db))" : "−\(Int(-db))").font(.system(size: 9, weight: .medium).monospacedDigit()).foregroundStyle(.secondary),
+                         at: CGPoint(x: rect.minX - 6, y: y(db)), anchor: .trailing)
+                db += 6
+            }
+            let line = { (values: [Double]) -> Path in
+                var p = Path()
+                for (k, f) in freqs.enumerated() { k == 0 ? p.move(to: CGPoint(x: x(f), y: y(values[k]))) : p.addLine(to: CGPoint(x: x(f), y: y(values[k]))) }
+                return p
+            }
+            ctx.stroke(line(current.map(\.left)), with: .color(.secondary.opacity(0.7)), style: StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+            let mine = line(curve.map(\.left))
+            var fill = mine
+            fill.addLine(to: CGPoint(x: x(EQ.freqMax), y: y(0))); fill.addLine(to: CGPoint(x: x(EQ.freqMin), y: y(0))); fill.closeSubpath()
+            ctx.fill(fill, with: .color(Color.accentColor.opacity(0.14)))
+            ctx.stroke(mine, with: .color(.accentColor), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            for (i, b) in preset.bands.enumerated() {
+                let c = CGPoint(x: x(b.freq), y: y(b.gain))
+                let r = CGRect(x: c.x - 9, y: c.y - 9, width: 18, height: 18)
+                ctx.fill(Path(ellipseIn: r), with: .color(Color.rowBackground))
+                ctx.stroke(Path(ellipseIn: r), with: .color(BandColor.of(b)), style: StrokeStyle(lineWidth: 2, dash: b.on ? [] : [3, 3]))
+                ctx.draw(Text("\(i + 1)").font(.system(size: 10, weight: .bold).monospacedDigit()).foregroundStyle(BandColor.of(b)), at: c)
+            }
+        }
+        .accessibilityLabel("The preset's curve")
     }
 }

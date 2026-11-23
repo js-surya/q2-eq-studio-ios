@@ -144,6 +144,7 @@ final class Studio {
         var next = preset
         edit(&next)
         if next == preset { return }
+        playing = nil
         let now = Date()
         if key == nil || key != lastKey || now.timeIntervalSince(lastAt) > 1.0 {
             history.append(preset)
@@ -166,6 +167,7 @@ final class Studio {
         guard let last = history.popLast() else { return }
         buzz(.light)
         future.append(preset)
+        playing = nil
         preset = last
         lastKey = nil
         store()
@@ -176,6 +178,7 @@ final class Studio {
         guard let next = future.popLast() else { return }
         buzz(.light)
         history.append(preset)
+        playing = nil
         preset = next
         lastKey = nil
         store()
@@ -421,10 +424,14 @@ final class Studio {
         }
     }
 
+    /// The AutoEq preset applied last, while the EQ is still it: its page says it's playing.
+    var playing: String?
+
     /// A preset from AutoEq, under its headphone's name.
     func apply(_ entry: Catalogue.Entry) {
         guard case .success(let p) = parse(entry.text, name: entry.name) else { return }
         load(p, notes: nil, how: "from AutoEq")
+        playing = entry.id
     }
 
     // MARK: The card's EQ folder

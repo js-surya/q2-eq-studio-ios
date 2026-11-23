@@ -34,15 +34,6 @@ struct EQView: View {
             .background(Color.groupedBackground)
         List(selection: $studio.selected) {
             Section {
-            } footer: {
-                #if os(macOS)
-                Text("Drag a dot or the curve to move a band. Press on the 0 dB line to add one. The wheel on a dot changes its Q; elsewhere it zooms. Press ? for every key.")
-                #else
-                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band.")
-                #endif
-            }
-
-            Section {
                 if width == .regular {
                     BandTableHeader().selectionDisabled()
                 }
@@ -73,21 +64,26 @@ struct EQView: View {
                     Spacer()
                     Text("\(studio.preset.bands.count) of \(EQ.maxBands)").monospacedDigit()
                 }
+            } footer: {
+                #if os(macOS)
+                Text("Drag a dot or the curve to move a band. Press on the 0 dB line to add one. The wheel on a dot changes its Q; elsewhere it zooms. Press ? for every key.")
+                #else
+                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band.")
+                #endif
+            }
+
+            Section {
+                ForEach(Knob.allCases, id: \.self) { knob in
+                    KnobRow(knob: knob, note: $note)
+                }
+                .selectionDisabled()
+            } header: {
+                Text("Bass and Treble")
+            } footer: {
+                Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
             }
 
             PreampSection()
-
-            Section {
-                DisclosureGroup("Bass and Treble", isExpanded: $showBass) {
-                    ForEach(Knob.allCases, id: \.self) { knob in
-                        KnobRow(knob: knob, note: $note)
-                    }
-                    Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                .selectionDisabled()
-            }
 
             let warnings = studio.warnings
             if !warnings.isEmpty {
@@ -102,6 +98,8 @@ struct EQView: View {
             }
         }
         .groupedList()
+        // Room under the last row, so it scrolls clear of the tab bar and the live status.
+        .contentMargins(.bottom, 120, for: .scrollContent)
         }
         .navigationTitle("EQ")
         .toolbar { EQToolbar() }
