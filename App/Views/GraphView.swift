@@ -16,6 +16,7 @@ struct GraphView: View {
     private static let gap = EdgeInsets(top: 10, leading: 34, bottom: 22, trailing: 10)
     private static let freqLines: [Double] = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
     private static let reach: CGFloat = 30
+    private static let freqs: [Double] = (0..<240).map { pow(10, logLow + logSpan * Double($0) / 239) }
     private static let logLow = log10(EQ.freqMin)
     private static let logSpan = log10(EQ.freqMax) - log10(EQ.freqMin)
 
@@ -37,7 +38,7 @@ struct GraphView: View {
 
     var body: some View {
         let preset = studio.preset
-        let freqs = (0..<240).map { pow(10, GraphView.logLow + GraphView.logSpan * Double($0) / 239) }
+        let freqs = GraphView.freqs
         let points = responses(preset, at: freqs)
         let range = frozenRange ?? rangeFor(points)
         let split = points.contains { abs($0.left - $0.right) > 0.01 }
@@ -95,8 +96,22 @@ struct GraphView: View {
                     .allowsHitTesting(false)
                 }
             }
+            .overlay {
+                // Each dot is a handle a finger can take (44 pt): only a drag that starts on one moves a
+                // band, so a swipe anywhere else on the graph scrolls the page.
+                if interactive {
+                    ForEach(preset.bands) { b in
+                        Color.clear
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                            .position(x: s.x(b.freq), y: s.y(min(max(b.gain, -s.range), s.range)))
+                            .gesture(handleDrag(b.id, s))
+                            .accessibilityHidden(true)
+                    }
+                }
+            }
+            .coordinateSpace(.named("graph"))
             .contentShape(Rectangle())
-            .gesture(interactive ? dragGesture(s) : nil)
             .simultaneousGesture(interactive ? pinchGesture : nil)
             .simultaneousGesture(interactive ? doubleTap(s) : nil)
             .sensoryFeedback(.selection, trigger: studio.selected)
@@ -162,16 +177,16 @@ struct GraphView: View {
         return best?.0
     }
 
-    private func dragGesture(_ s: Scale) -> some Gesture {
-        DragGesture(minimumDistance: 0)
+    /// A dot's own drag: its band follows the finger, the dB range held still until it lets go.
+    private func handleDrag(_ id: Band.ID, _ s: Scale) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
             .onChanged { v in
                 if dragging == nil {
-                    guard let id = nearest(v.startLocation, s) else { return }
                     dragging = id
                     studio.selected = id
                     frozenRange = s.range
                 }
-                guard let id = dragging, let i = studio.band(id) else { return }
+                guard dragging == id, let i = studio.band(id), hypot(v.translation.width, v.translation.height) > 2 else { return }
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let freq = min(max(s.freq(v.location.x), EQ.freqMin), EQ.freqMax)
                 let gain = min(max(s.db(v.location.y), -EQ.gainMax), EQ.gainMax)
@@ -181,10 +196,7 @@ struct GraphView: View {
                     p.bands[k].gain = knob ? min(max((gain * 10).rounded() / 10, 0), Knob.maxGain) : (gain * 10).rounded() / 10
                 }
             }
-            .onEnded { v in
-                if dragging == nil, hypot(v.translation.width, v.translation.height) < 4 {
-                    studio.selected = nearest(v.startLocation, s)
-                }
+            .onEnded { _ in
                 dragging = nil
                 frozenRange = nil
             }
