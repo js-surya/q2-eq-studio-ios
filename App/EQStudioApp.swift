@@ -164,10 +164,49 @@ struct RootView: View {
 /// What the Q2 is doing with this EQ, under the tabs: live, sending, an editor only, or what went wrong.
 struct LiveStatus: View {
     @Environment(Studio.self) private var studio
+    #if os(iOS)
+    @Environment(\.tabViewBottomAccessoryPlacement) private var placement
+    #endif
     let signIn: () -> Void
+
+    /// Beside the tab bar once it has collapsed: one short line.
+    private var inline: Bool {
+        #if os(iOS)
+        placement == .inline
+        #else
+        false
+        #endif
+    }
 
     var body: some View {
         let live = studio.live
+        if inline { compact(live) } else { full(live) }
+    }
+
+    private func compact(_ live: Studio.LiveState) -> some View {
+        HStack(spacing: 8) {
+            if live.error != nil {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                Text("Can't reach the Q2").font(.footnote.weight(.medium)).lineLimit(1)
+            } else if !live.known {
+                ProgressView().controlSize(.small)
+                Text("Reaching the Q2…").font(.footnote).lineLimit(1)
+            } else if live.local {
+                Image(systemName: "pencil.and.list.clipboard").foregroundStyle(.secondary)
+                Text("Editor only").font(.footnote.weight(.medium)).lineLimit(1)
+            } else {
+                Circle()
+                    .fill(live.mode == "peq" ? Color.green : Color.secondary)
+                    .frame(width: 8, height: 8)
+                Text(live.sending ? "Sending…" : live.mode == "peq" ? "Playing on the Q2" : "EQ off").font(.footnote.weight(.medium)).lineLimit(1)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func full(_ live: Studio.LiveState) -> some View {
         HStack(spacing: 10) {
             if let error = live.error {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -207,7 +246,9 @@ extension View {
     /// Under the tabs on an iPhone and an iPad, the bar's own accessory; at the window's foot on a Mac.
     @ViewBuilder func liveStatus(@ViewBuilder _ status: () -> some View) -> some View {
         #if os(iOS)
+        // On an iPhone the tab bar collapses as the page scrolls down, the status beside it, and comes back up.
         tabViewBottomAccessory { status() }
+            .tabBarMinimizeBehavior(.onScrollDown)
         #else
         let s = status()
         safeAreaInset(edge: .bottom) {
