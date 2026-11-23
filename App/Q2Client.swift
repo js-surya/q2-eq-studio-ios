@@ -211,32 +211,44 @@ struct Q2Client: Sendable {
     }
 }
 
-/// The link kept between launches: the address in the defaults, the key in the keychain.
+/// The link kept between launches: the addresses in the defaults, the key in the keychain. A Q2 keeps
+/// one key whichever way it's reached, so its Wi-Fi address and its Tailscale one are both kept, the one
+/// that last answered first, and the app moves to another when one stops answering.
 enum LinkStore {
-    private static let addressKey = "q2.base"
+    private static let addressesKey = "q2.bases"
     private static let service = "EQ Studio"
+    private static let account = "q2"
+
+    static var addresses: [URL] {
+        (UserDefaults.standard.stringArray(forKey: addressesKey) ?? []).compactMap(URL.init(string:))
+    }
 
     static func load() -> Q2Link? {
-        guard let s = UserDefaults.standard.string(forKey: addressKey), let base = URL(string: s) else { return nil }
+        guard let base = addresses.first else { return nil }
         var item: CFTypeRef?
         let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                kSecAttrAccount as String: s, kSecReturnData as String: true]
+                                kSecAttrAccount as String: account, kSecReturnData as String: true]
         guard SecItemCopyMatching(q as CFDictionary, &item) == errSecSuccess, let data = item as? Data else { return nil }
         return Q2Link(base: base, key: String(decoding: data, as: UTF8.self))
     }
 
+    /// The link, its address first. A new key is another Q2 (or a new key on it): the old addresses go.
     static func save(_ link: Q2Link) {
-        forget()
-        let s = link.base.absoluteString
-        UserDefaults.standard.set(s, forKey: addressKey)
-        let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
-                                kSecAttrAccount as String: s, kSecValueData as String: Data(link.key.utf8),
-                                kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
-        SecItemAdd(q as CFDictionary, nil)
+        let same = load()?.key == link.key
+        var list = same ? addresses.filter { $0 != link.base } : []
+        list.insert(link.base, at: 0)
+        UserDefaults.standard.set(Array(list.prefix(4)).map(\.absoluteString), forKey: addressesKey)
+        if !same {
+            SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary)
+            let q: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
+                                    kSecAttrAccount as String: account, kSecValueData as String: Data(link.key.utf8),
+                                    kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly]
+            SecItemAdd(q as CFDictionary, nil)
+        }
     }
 
     static func forget() {
-        UserDefaults.standard.removeObject(forKey: addressKey)
+        UserDefaults.standard.removeObject(forKey: addressesKey)
         SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service] as CFDictionary)
     }
 }

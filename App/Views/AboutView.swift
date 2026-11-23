@@ -7,6 +7,7 @@ struct AboutView: View {
     @Environment(Studio.self) private var studio
     @State private var contributors: [Contributor] = Contributor.builtIn
     @State private var confirmDisconnect = false
+    @State private var addAddress = false
 
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -36,6 +37,11 @@ struct AboutView: View {
             if let link = studio.link {
                 Section("Q2") {
                     LabeledContent("Address", value: link.address)
+                    if studio.addresses.count > 1 {
+                        LabeledContent("Also Reached At", value: studio.addresses.filter { $0 != link.base }
+                            .map { Q2Link(base: $0, key: "").address }.joined(separator: ", "))
+                    }
+                    Button("Add Another Address…", systemImage: "plus") { addAddress = true }
                     LabeledContent("Live EQ", value: studio.live.local ? "Not on this Q2 Pod" : studio.live.on ? "On" : "—")
                     Button("Sign Out", role: .destructive) { confirmDisconnect = true }
                 }
@@ -102,6 +108,7 @@ struct AboutView: View {
         .formStyle(.grouped)
         .navigationTitle("About")
         .task { if let live = await Contributor.fetch() { contributors = live } }
+        .sheet(isPresented: $addAddress) { SignInForm() }
         .confirmationDialog("Sign out of this Q2?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
             Button("Sign Out", role: .destructive) { studio.disconnect() }
         } message: {

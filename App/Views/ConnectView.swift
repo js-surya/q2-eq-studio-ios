@@ -100,7 +100,7 @@ struct SignInForm: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("Address", text: $address, prompt: Text("192.168.1.20:8020"))
+                    TextField("Address", text: $address, prompt: Text("192.168.1.20:8020 or 100.x.y.z:8020"))
                         .focused($field, equals: .address)
                         .autocorrectionDisabled()
                         #if os(iOS)
@@ -116,7 +116,7 @@ struct SignInForm: View {
                         #endif
                         .onSubmit(signIn)
                 } footer: {
-                    Text("Both are under the QR code on the Q2's screen. You can also paste the code's link as the address.")
+                    Text("Both are under the QR code on the Q2's screen. Away from the Q2's Wi-Fi, use its address in Tailscale's Settings → Apps Shared Now, with Tailscale on here. You can also paste the code's link.")
                 }
                 if let error {
                     Section { Label(error, systemImage: "exclamationmark.triangle.fill").foregroundStyle(.red) }

@@ -227,12 +227,16 @@ final class Studio {
 
     /// What the Q2 has. The first time it opens with the Q2's EQ; later, a change made on the Q2
     /// while this device was away replaces this one's, unless an edit is on its way.
-    func readState(first: Bool = false) async {
+    func readState(first: Bool = false, moved: Bool = false) async {
         guard let client else { return }
         let state: Q2State
         do {
             state = try await client.state()
         } catch {
+            if !moved, let e = error as? Q2Error, e == .unreachable || e == .timeout, await moveToAnotherAddress() {
+                await readState(first: first, moved: true)
+                return
+            }
             live.known = true
             setError(error.localizedDescription) { [weak self] in Task { await self?.readState(first: first) } }
             return
@@ -254,6 +258,22 @@ final class Studio {
         if let text = state.preset { take(text, first: first) }
         if sent == nil { sent = serialize(preset) }
     }
+
+    /// This Q2 at another address it was reached at before (Wi-Fi or Tailscale), if one answers now.
+    private func moveToAnotherAddress() async -> Bool {
+        guard let link else { return false }
+        for base in LinkStore.addresses where base != link.base {
+            let other = Q2Link(base: base, key: link.key)
+            if (try? await Q2Client(link: other).state()) != nil {
+                LinkStore.save(other)
+                self.link = other
+                return true
+            }
+        }
+        return false
+    }
+
+    var addresses: [URL] { LinkStore.addresses }
 
     /// The Q2's PEQ, as this device's preset, keeping the name; the first time without an undo step.
     private func take(_ text: String, first: Bool) {
