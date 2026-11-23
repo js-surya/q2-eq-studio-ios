@@ -131,6 +131,7 @@ struct RootView: View {
                     if let i = studio.tabAsked { tab = [Tab.eq, .presets, .response, .card, .settings][i]; studio.tabAsked = nil }
                 }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
+                .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
                 .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
                 .sheet(isPresented: $showSignIn) { SignInForm() }
                 .dropDestination(for: URL.self) { urls, _ in

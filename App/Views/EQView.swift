@@ -18,6 +18,7 @@ struct EQView: View {
                 GraphView()
                     .frame(height: width == .regular ? 320 : 230)
                 if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
+                ToolStrip()
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -237,23 +238,9 @@ private struct EQToolbar: ToolbarContent {
                 .disabled(!studio.canRedo)
                 .keyboardShortcut("z", modifiers: [.command, .shift])
             Menu("More", systemImage: "ellipsis") {
-                Toggle("Each Band's Curve", systemImage: "point.3.connected.trianglepath.dotted", isOn: $studio.showEachBand)
-                let anyOn = studio.preset.bands.contains { $0.on }
-                Button(anyOn ? "Turn Every Band Off" : "Turn Every Band On", systemImage: anyOn ? "speaker.slash" : "speaker.wave.2") {
-                    studio.change { p in for k in p.bands.indices { p.bands[k].on = !anyOn } }
-                }
-                Divider()
-                Button("Copy", systemImage: "doc.on.doc") { studio.copyEQ() }
-                Button("Paste Preset", systemImage: "doc.on.clipboard") {
-                    if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
-                }
-                if Device.hasPointer { Toggle("Inspect", systemImage: "scope", isOn: $studio.inspect) }
+                Button("Paste an EQ's Text…", systemImage: "text.badge.plus") { studio.pasteAsked = true }
                 ThemePicker().pickerStyle(.menu)
                 if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
-                Divider()
-                Button("Start Over with 10 Flat Bands", systemImage: "arrow.counterclockwise", role: .destructive) {
-                    studio.replace(with: .flat(name: studio.preset.name))
-                }
             }
         }
         if studio.live.on {
@@ -408,5 +395,70 @@ extension Color {
         #else
         Color(nsColor: .controlBackgroundColor)
         #endif
+    }
+}
+
+/// The graph's tools, in sight under it rather than in a menu: each band's curve, every band off or on,
+/// Inspect and Fit where there's a pointer, Copy, Paste and Start Over.
+private struct ToolStrip: View {
+    @Environment(Studio.self) private var studio
+    @State private var confirmReset = false
+
+    var body: some View {
+        @Bindable var studio = studio
+        let allOff = !studio.preset.bands.contains { $0.on }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Tool(title: "Bands", icon: "point.3.connected.trianglepath.dotted", on: studio.showEachBand) { studio.showEachBand.toggle() }
+                    .help("Each band's own curve (V)")
+                Tool(title: allOff ? "Bypassed" : "Bypass", icon: allOff ? "speaker.slash.fill" : "speaker.slash", on: allOff) {
+                    studio.change { p in for k in p.bands.indices { p.bands[k].on = allOff } }
+                }
+                .help("Every band off, or on (B)")
+                if Device.hasPointer {
+                    Tool(title: "Inspect", icon: "scope", on: studio.inspect) { studio.inspect.toggle() }
+                        .help("A line at the pointer, and the gain there (Space)")
+                }
+                if studio.zoom != nil {
+                    Tool(title: "Fit", icon: "arrow.up.and.down.and.arrow.left.and.right", on: false) { studio.zoom = nil }
+                        .help("Fit the curve to the graph (F)")
+                }
+                Tool(title: "Copy", icon: "doc.on.doc", on: false) { studio.copyEQ() }
+                    .help("The EQ as a preset's text")
+                Tool(title: "Paste", icon: "doc.on.clipboard", on: false) {
+                    if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
+                }
+                .help("A preset's text or Poweramp's from the clipboard")
+                Tool(title: "Reset", icon: "arrow.counterclockwise", on: false) { confirmReset = true }
+                    .help("Start over with 10 flat bands")
+            }
+            .padding(.horizontal, 4)
+        }
+        .confirmationDialog("Start over with 10 flat bands?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Start Over", role: .destructive) {
+                studio.replace(with: .flat(name: studio.preset.name))
+                studio.say("10 flat bands. Undo brings back the EQ before.", undo: true)
+            }
+        }
+    }
+}
+
+/// A tool: an icon and its word in a glass capsule, tinted while it's on.
+private struct Tool: View {
+    let title: String
+    let icon: String
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: icon)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, 12).padding(.vertical, 7)
+                .foregroundStyle(on ? Color.white : Color.primary)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(on ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .capsule)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

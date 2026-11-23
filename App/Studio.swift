@@ -56,6 +56,7 @@ final class Studio {
     }
     var inspect = false
     var showKeys = false
+    var pasteAsked = false // the EQ tab's menu: the Paste sheet
     var tabAsked: Int? // ⌘1 to ⌘5 on a Mac: EQ, Presets, Response, Card, Settings
     var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
     var searchAsked: UUID? // / asked for the presets' search
