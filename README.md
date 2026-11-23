@@ -71,8 +71,8 @@ changed in each version.
 You need Xcode 27 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```sh
-git clone https://github.com/js-surya/q2-eq-studio-apple.git
-cd q2-eq-studio-apple
+git clone https://github.com/js-surya/q2-eq-studio-ios.git
+cd q2-eq-studio-ios
 cp Config/Signing.xcconfig.example Config/Signing.xcconfig   # put your Apple Team ID in it
 xcodegen generate
 open EQStudio.xcodeproj

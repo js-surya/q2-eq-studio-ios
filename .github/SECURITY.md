@@ -3,7 +3,7 @@
 ## Reporting a problem
 
 Please **don't open a public issue** for security problems. Report them privately through
-[GitHub's private vulnerability reporting](https://github.com/js-surya/q2-eq-studio-apple/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/js-surya/q2-eq-studio-ios/security/advisories/new)
 for this repository. Include the app's version, your device and iOS version, and steps to reproduce.
 
 You'll get a reply within a week. Once a fix ships, you'll be credited in the release notes

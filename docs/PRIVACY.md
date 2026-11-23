@@ -23,4 +23,4 @@ server of the app's own.
 - **Files** you open or share go where you choose; the app keeps no copy.
 - **Clipboard:** the app reads it only when you tap Paste.
 
-Questions: open an issue in the [repository](https://github.com/js-surya/q2-eq-studio-apple/issues).
+Questions: open an issue in the [repository](https://github.com/js-surya/q2-eq-studio-ios/issues).
