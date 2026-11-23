@@ -100,12 +100,12 @@ struct AboutView: View {
             }
 
             Section("Developer") {
-                Person(login: Contributor.developer, name: "Surya JS", role: "This app: iPhone, iPad and Mac")
+                Person(login: Contributor.developer, name: "Surya JS", role: "EQ Studio for iPhone, iPad and Mac")
             }
 
             Section("Built On") {
-                Person(login: "DiamondBond", role: "EQ Studio and Q2 Pod: every feature here, and the icon")
-                Person(login: "tyleree", role: "Q2 Theme Studio: the EQ engine this app runs")
+                Person(login: "DiamondBond", role: "EQ Studio · Q2 Pod")
+                Person(login: "tyleree", role: "Q2 Theme Studio")
             }
 
             Section {
