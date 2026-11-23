@@ -28,7 +28,7 @@ struct PresetsView: View {
         List {
             if width == .regular {
                 Section {
-                    GraphView(interactive: false)
+                    GraphView(interactive: false, inRow: true)
                         .frame(height: 200)
                         .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 }

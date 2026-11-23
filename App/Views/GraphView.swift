@@ -47,6 +47,8 @@ struct GraphView: View {
 
     /// For the picture of the graph: its title, a legend and its own background, nothing to touch.
     var still = false
+    /// In a list's row (Presets, Response), whose background is the row's.
+    var inRow = false
     @State private var hover: CGPoint?
 
     var body: some View {
@@ -89,8 +91,8 @@ struct GraphView: View {
                     if faded { eqCtx.opacity = 0.4 }
                     if studio.showEachBand {
                         for (i, b) in preset.bands.enumerated() where b.on && b.gain != 0 && i != picked {
-                            eqCtx.stroke(line(freqs.map { bandResponse(b, at: $0, rate: rate) }), with: .color(BandColor.of(i).opacity(0.55)),
-                                         style: StrokeStyle(lineWidth: 1.25, dash: [3, 3]))
+                            eqCtx.stroke(line(freqs.map { bandResponse(b, at: $0, rate: rate) }), with: .color(BandColor.of(b).opacity(0.55)),
+                                         style: StrokeStyle(lineWidth: 1.25, lineJoin: .round))
                         }
                     }
                     // The picked band's own curve, dashed over a faint fill.
@@ -100,19 +102,19 @@ struct GraphView: View {
                         fill.addLine(to: CGPoint(x: s.rect.maxX, y: s.y(0)))
                         fill.addLine(to: CGPoint(x: s.rect.minX, y: s.y(0)))
                         fill.closeSubpath()
-                        eqCtx.fill(fill, with: .color(BandColor.of(picked).opacity(0.18)))
-                        eqCtx.stroke(own, with: .color(BandColor.of(picked).opacity(0.7)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        eqCtx.fill(fill, with: .color(.secondary.opacity(0.18)))
+                        eqCtx.stroke(own, with: .color(BandColor.faint), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
                     }
                     let left = line(points.map(\.left))
                     if !split {
+                        // The area between the curve and 0 dB, evenly, as the page shades it.
                         var fill = left
-                        fill.addLine(to: CGPoint(x: s.rect.maxX, y: s.y(0)))
-                        fill.addLine(to: CGPoint(x: s.rect.minX, y: s.y(0)))
+                        fill.addLine(to: CGPoint(x: s.x(EQ.freqMax), y: s.y(0)))
+                        fill.addLine(to: CGPoint(x: s.x(EQ.freqMin), y: s.y(0)))
                         fill.closeSubpath()
-                        eqCtx.fill(fill, with: .linearGradient(Gradient(colors: [Color.accentColor.opacity(measured == nil ? 0.28 : 0.12), Color.accentColor.opacity(0.03)]),
-                                                               startPoint: CGPoint(x: 0, y: s.rect.minY), endPoint: CGPoint(x: 0, y: s.y(0))))
+                        eqCtx.fill(fill, with: .color(Color.accentColor.opacity(measured == nil ? 0.14 : 0.1)))
                     } else {
-                        eqCtx.stroke(line(points.map(\.right)), with: .color(.pink), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+                        eqCtx.stroke(line(points.map(\.right)), with: .color(BandColor.right), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
                     }
                     eqCtx.stroke(left, with: .color(.accentColor), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
                     // The measurement with the EQ, bold: what you'd hear.
@@ -128,28 +130,46 @@ struct GraphView: View {
                         var cross = Path()
                         cross.move(to: CGPoint(x: c.x, y: s.rect.minY)); cross.addLine(to: CGPoint(x: c.x, y: s.rect.maxY))
                         cross.move(to: CGPoint(x: s.rect.minX, y: c.y)); cross.addLine(to: CGPoint(x: s.rect.maxX, y: c.y))
-                        ctx.stroke(cross, with: .color(BandColor.of(picked).opacity(0.35)), lineWidth: 1)
-                        ctx.fill(Path(ellipseIn: CGRect(x: c.x - 26, y: c.y - 26, width: 52, height: 52)), with: .color(BandColor.of(picked).opacity(0.18)))
+                        ctx.stroke(cross, with: .color(BandColor.of(b).opacity(0.35)), lineWidth: 1)
+                        ctx.fill(Path(ellipseIn: CGRect(x: c.x - 26, y: c.y - 26, width: 52, height: 52)), with: .color(BandColor.of(b).opacity(0.18)))
                     }
                     drawDots(ctx, s, preset)
-                    // Inspect: a line where the pointer is, and the gain there.
+                    #if os(macOS)
+                    // Where a click adds a band: on the 0 dB line, where a new band's dot sits.
+                    if interactive, dragging == nil, let h = hover, s.rect.contains(h), abs(h.y - s.y(0)) <= 9, nearest(h, s) == nil {
+                        let c = CGPoint(x: h.x, y: s.y(0))
+                        let ring = Path(ellipseIn: CGRect(x: c.x - 9, y: c.y - 9, width: 18, height: 18))
+                        ctx.fill(ring, with: .color(dotBackground))
+                        var plus = Path()
+                        plus.move(to: CGPoint(x: c.x - 4, y: c.y)); plus.addLine(to: CGPoint(x: c.x + 4, y: c.y))
+                        plus.move(to: CGPoint(x: c.x, y: c.y - 4)); plus.addLine(to: CGPoint(x: c.x, y: c.y + 4))
+                        ctx.stroke(ring, with: .color(.accentColor.opacity(0.85)), style: StrokeStyle(lineWidth: 1.5, dash: [2, 2]))
+                        ctx.stroke(plus, with: .color(.accentColor.opacity(0.85)), lineWidth: 1.5)
+                    }
+                    #endif
+                    // Inspect: a line where the pointer is, and a dot on each side's curve there.
                     if studio.inspect, let h = hover, s.rect.contains(h) {
                         var v = Path()
                         v.move(to: CGPoint(x: h.x, y: s.rect.minY)); v.addLine(to: CGPoint(x: h.x, y: s.rect.maxY))
                         ctx.stroke(v, with: .color(.primary.opacity(0.5)), lineWidth: 1)
+                        let r = response(preset, at: s.freq(h.x), rate: rate)
+                        for (gain, colour) in split ? [(r.left, Color.accentColor), (r.right, BandColor.right)] : [(r.left, Color.accentColor)] {
+                            ctx.fill(Path(ellipseIn: CGRect(x: h.x - 4, y: s.y(min(max(gain, -range), range)) - 4, width: 8, height: 8)), with: .color(colour))
+                        }
                     }
                     if still {
-                        ctx.draw(Text(preset.name.isEmpty ? "EQ" : preset.name).font(.system(size: 17, weight: .semibold)),
+                        ctx.draw(Text(preset.name.isEmpty ? EQ.fallbackName : preset.name).font(.system(size: 17, weight: .semibold)),
                                  at: CGPoint(x: s.rect.minX, y: 22), anchor: .leading)
-                        let note = preset.auto ? "Preamp Auto (\(Format.dB(autoPreamp(preset, rate: rate))))" : "Preamp \(Format.dB(preset.preamp))"
-                        ctx.draw(Text("\(note) · EQ Studio").font(.system(size: 11)).foregroundStyle(.secondary),
-                                 at: CGPoint(x: s.rect.maxX, y: 22), anchor: .trailing)
+                        let n = preset.bands.count
+                        let words = "\(n) \(n == 1 ? "band" : "bands") · drawn at \(Format.hertz(rate))"
+                        ctx.draw(Text(split ? "\(words) · left blue, right orange" : words).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary),
+                                 at: CGPoint(x: geo.size.width - g.trailing, y: 22), anchor: .trailing)
                     }
                 }
                 if split {
                     HStack(spacing: 10) {
                         Label("Left", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
-                        Label("Right", systemImage: "circle.fill").foregroundStyle(.pink)
+                        Label("Right", systemImage: "circle.fill").foregroundStyle(BandColor.right)
                     }
                     .font(.caption2.weight(.medium))
                     .labelStyle(.titleAndIcon)
@@ -262,23 +282,37 @@ struct GraphView: View {
         }
     }
 
+    /// The dots, as the page draws them: each a ring in its band's colour with its number, dashed when
+    /// off; the picked one filled, on top; the one under the pointer ringed.
     private func drawDots(_ ctx: GraphicsContext, _ s: Scale, _ preset: Preset) {
-        for (i, b) in preset.bands.enumerated() {
-            let picked = b.id == studio.selected
+        let pickedIndex = still ? nil : studio.band(studio.selected)
+        var order = preset.bands.indices.filter { $0 != pickedIndex }
+        if let pickedIndex { order.append(pickedIndex) }
+        let hovered = still || dragging != nil ? nil : hover.flatMap { nearest($0, s) }
+        for i in order {
+            let b = preset.bands[i]
+            let picked = i == pickedIndex
             let c = CGPoint(x: s.x(b.freq), y: s.y(min(max(b.gain, -s.range), s.range)))
-            let r: CGFloat = picked ? 9 : 6.5
+            let r: CGFloat = picked ? 12 : 9
             let rect = CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)
-            let colour = BandColor.of(i)
-            if picked {
+            let colour = BandColor.of(b)
+            if b.id == hovered {
                 ctx.fill(Path(ellipseIn: rect.insetBy(dx: -6, dy: -6)), with: .color(colour.opacity(0.22)))
             }
-            ctx.fill(Path(ellipseIn: rect), with: .color(b.on ? colour : Color.secondary.opacity(0.5)))
-            ctx.stroke(Path(ellipseIn: rect), with: .color(.white.opacity(0.9)), lineWidth: picked ? 2 : 1.25)
             if picked {
-                ctx.draw(Text("\(i + 1)").font(.system(size: 10, weight: .bold).monospacedDigit()).foregroundStyle(.white), at: c)
+                ctx.fill(Path(ellipseIn: rect), with: .color(colour))
+                ctx.stroke(Path(ellipseIn: rect), with: .color(dotBackground), lineWidth: 2)
+                ctx.draw(Text("\(i + 1)").font(.system(size: 12, weight: .bold).monospacedDigit()).foregroundStyle(.white), at: c)
+            } else {
+                ctx.fill(Path(ellipseIn: rect), with: .color(dotBackground))
+                ctx.stroke(Path(ellipseIn: rect), with: .color(colour), style: StrokeStyle(lineWidth: 2, dash: b.on ? [] : [3, 3]))
+                ctx.draw(Text("\(i + 1)").font(.system(size: 10, weight: .bold).monospacedDigit()).foregroundStyle(colour), at: c)
             }
         }
     }
+
+    /// The graph's own background, which a ring's middle shows.
+    private var dotBackground: Color { still ? Color(white: 0.98) : inRow ? Color.rowBackground : Color.groupedBackground }
 
     private func nearest(_ p: CGPoint, _ s: Scale) -> Band.ID? {
         var best: (Band.ID, CGFloat)?

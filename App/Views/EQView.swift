@@ -120,7 +120,7 @@ private struct BandRow: View {
                 .font(.footnote.weight(.bold).monospacedDigit())
                 .foregroundStyle(.white)
                 .frame(width: 26, height: 26)
-                .background(band.on ? BandColor.of(index) : Color.secondary.opacity(0.5), in: .circle)
+                .background(BandColor.of(band), in: .circle)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(Format.hertz(band.freq)).font(.body.weight(.semibold).monospacedDigit())
@@ -301,7 +301,7 @@ private struct BandTableRow: View {
                 .font(.footnote.weight(.bold).monospacedDigit())
                 .foregroundStyle(.white)
                 .frame(width: 24, height: 24)
-                .background(band.on ? BandColor.of(index) : Color.secondary.opacity(0.5), in: .circle)
+                .background(BandColor.of(band), in: .circle)
                 .frame(width: Column.num)
             Toggle("On", isOn: field(\.on, "on")).labelsHidden().frame(width: Column.on)
             Picker("Type", selection: field(\.type, "type")) {
@@ -393,6 +393,14 @@ extension Color {
     static var groupedBackground: Color {
         #if os(iOS)
         Color(uiColor: .systemGroupedBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
+    }
+
+    static var rowBackground: Color {
+        #if os(iOS)
+        Color(uiColor: .secondarySystemGroupedBackground)
         #else
         Color(nsColor: .controlBackgroundColor)
         #endif

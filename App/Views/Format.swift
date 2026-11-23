@@ -47,8 +47,9 @@ enum Format {
     }
 }
 
-/// Each band's colour on the graph and in the list, around the wheel.
+/// A band's colour, as the page has it: the accent, orange for the right side alone, faint when off.
 enum BandColor {
-    private static let hues: [Color] = [.blue, .orange, .green, .pink, .purple, .teal, .yellow, .red, .indigo, .mint, .cyan, .brown]
-    static func of(_ index: Int) -> Color { hues[index % hues.count] }
+    static let right = Color.orange
+    static let faint = Color.secondary.opacity(0.5)
+    static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : .accentColor }
 }

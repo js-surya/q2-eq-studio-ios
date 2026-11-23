@@ -22,7 +22,7 @@ struct ResponseView: View {
         List {
             if width == .regular {
                 Section {
-                    GraphView(interactive: false)
+                    GraphView(interactive: false, inRow: true)
                         .frame(height: 220)
                         .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     ShownBar()
