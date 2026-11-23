@@ -102,6 +102,10 @@ struct EQView: View {
         .contentMargins(.bottom, 120, for: .scrollContent)
         }
         .navigationTitle("EQ")
+        #if os(iOS)
+        // The gear's Settings, as a page of the EQ tab: the app's own colours, Back to the EQ.
+        .navigationDestination(isPresented: Binding(get: { studio.showSettings }, set: { studio.showSettings = $0 })) { SettingsView() }
+        #endif
         .toolbar { EQToolbar() }
         .inspector(isPresented: Binding(get: { studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
             BandEditor()

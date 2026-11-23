@@ -136,16 +136,15 @@ struct RootView: View {
                 // Presets opens with the cursor in its search box.
                 .onChange(of: tab) { if tab == .search { studio.searchAsked = UUID() } }
                 .onAppear { if tab == .search { studio.searchAsked = UUID() } }
+                #if DEBUG
+                .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
+                #endif
                 .onChange(of: studio.tabAsked) {
                     if let i = studio.tabAsked { tab = [Tab.eq, .search, .response, .card, .search][i]; studio.tabAsked = nil }
                 }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
-                #if os(iOS)
-                .sheet(isPresented: Binding(get: { studio.showSettings }, set: { studio.showSettings = $0 })) {
-                    NavigationStack { SettingsView(sheet: true) }
-                }
-                #endif
+
                 .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
                 .sheet(isPresented: $showSignIn) { SignInForm() }
                 .dropDestination(for: URL.self) { urls, _ in
