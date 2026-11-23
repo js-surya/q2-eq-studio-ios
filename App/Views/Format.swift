@@ -100,12 +100,13 @@ struct HapticEvent: Equatable {
 
 /// The app's accent choices: EQ Studio's blue first, then iOS's own colours.
 enum AccentChoice: String, CaseIterable, Identifiable {
-    case studio, indigo, purple, pink, red, orange, yellow, green, mint, teal, graphite
+    case studio, lively, indigo, purple, pink, red, orange, yellow, green, mint, teal, graphite
     var id: String { rawValue }
     var title: String { self == .studio ? "EQ Studio" : rawValue.capitalized }
     var color: Color {
         switch self {
         case .studio: BandColor.accent
+        case .lively: Color(red: 0x1D / 255, green: 0xB9 / 255, blue: 0x54 / 255) // a bright green, #1DB954
         case .indigo: .indigo
         case .purple: .purple
         case .pink: .pink
