@@ -72,9 +72,17 @@ struct SettingsView: View {
             }
             Section {
                 if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
-                NavigationLink(value: "about") {
-                    Label("About EQ Studio", systemImage: "info.circle")
+                // Pushed from Settings itself, not by value: Settings is open through its gear's binding,
+                // and a value pushed onto the tab's path would close it again.
+                Button { showAbout = true } label: {
+                    HStack {
+                        Label("About EQ Studio", systemImage: "info.circle")
+                        Spacer()
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
                 }
+                .tint(.primary)
             }
         }
         .formStyle(.grouped)
@@ -82,7 +90,6 @@ struct SettingsView: View {
         .toolbar {
             if sheet { ToolbarItem(placement: .confirmationAction) { Button("Done", systemImage: "checkmark") { dismiss() } } }
         }
-        .navigationDestination(for: String.self) { _ in AboutView() }
         .navigationDestination(isPresented: $showAbout) { AboutView() }
         #if DEBUG
         .onAppear { if ProcessInfo.processInfo.environment["EQS_TAB"] == "about" { showAbout = true } }
