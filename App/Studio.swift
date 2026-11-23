@@ -123,7 +123,10 @@ final class Studio {
         warnings = EQCore.warnings(preset, rate: rate)
     }
     var selected: Band.ID?
-    var showEachBand = false
+    /// Each band's own curve on the graph: kept between launches.
+    var showEachBand = UserDefaults.standard.bool(forKey: "eq.eachBand") {
+        didSet { UserDefaults.standard.set(showEachBand, forKey: "eq.eachBand") }
+    }
 
     private var history: [Preset] = []
     private var future: [Preset] = []
