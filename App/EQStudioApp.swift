@@ -46,7 +46,19 @@ struct EQStudioApp: App {
 struct RootView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.scenePhase) private var phase
-    @State private var tab = Tab.eq
+    @State private var tab: Tab = {
+        #if DEBUG
+        // For screenshots on a simulator: EQS_TAB=presets (response, card, about) opens on that tab.
+        switch ProcessInfo.processInfo.environment["EQS_TAB"] {
+        case "presets": return .presets
+        case "response": return .response
+        case "card": return .card
+        case "about": return .about
+        default: break
+        }
+        #endif
+        return .eq
+    }()
     @State private var showSignIn = false
 
     enum Tab: Hashable { case eq, presets, response, card, about }
