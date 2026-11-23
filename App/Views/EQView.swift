@@ -15,6 +15,15 @@ struct EQView: View {
             // The graph pinned above the list: it stays in view while the bands scroll, and a pull on the
             // list moves the list alone.
             VStack(spacing: 6) {
+                if !studio.preset.name.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
+                        Marquee(text: studio.preset.name)
+                    }
+                    .padding(.horizontal, 8)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("Playing \(studio.preset.name)")
+                }
                 GraphView()
                     .frame(height: width == .regular ? 320 : 230)
                 if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
@@ -94,7 +103,7 @@ struct EQView: View {
         }
         .groupedList()
         }
-        .navigationTitle(studio.preset.name.isEmpty ? "EQ" : studio.preset.name)
+        .navigationTitle("EQ")
         .toolbar { EQToolbar() }
         .inspector(isPresented: Binding(get: { studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
             BandEditor()
@@ -458,5 +467,55 @@ private struct Tool: View {
         .buttonStyle(.plain)
         .glassEffect(on ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .capsule)
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+}
+
+/// A line of text that fits, or, when it doesn't, scrolls to show the rest, waits, and scrolls back; the
+/// edges faded. With Reduce Motion it stands still, cut short with an ellipsis.
+struct Marquee: View {
+    let text: String
+    var font: Font = .headline
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var full: CGFloat = 0
+    @State private var room: CGFloat = 0
+    @State private var start = Date()
+
+    private let speed: CGFloat = 30 // points a second
+    private let rest: Double = 1.6 // seconds still at each end
+
+    var body: some View {
+        let over = max(full - room, 0)
+        Text(text)
+            .font(font)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .opacity(over > 0 && !reduceMotion ? 0 : 1)
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { room = $0 }
+            .overlay(alignment: .leading) {
+                if over > 0 && !reduceMotion {
+                    TimelineView(.animation) { context in
+                        let travel = Double(over / speed)
+                        let cycle = 2 * (travel + rest)
+                        let t = context.date.timeIntervalSince(start).truncatingRemainder(dividingBy: cycle)
+                        // still, out, still, back
+                        let phase = t < rest ? 0 : t < rest + travel ? (t - rest) / travel : t < 2 * rest + travel ? 1 : 1 - (t - 2 * rest - travel) / travel
+                        let eased = phase * phase * (3 - 2 * phase)
+                        Text(text).font(font).fixedSize().offset(x: -over * eased)
+                    }
+                    .frame(width: room, alignment: .leading)
+                    .clipped()
+                    .mask {
+                        LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.04),
+                                               .init(color: .black, location: 0.92), .init(color: .clear, location: 1)],
+                                       startPoint: .leading, endPoint: .trailing)
+                    }
+                }
+            }
+            .background {
+                Text(text).font(font).fixedSize().hidden()
+                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { full = $0 }
+            }
+            .onChange(of: text) { start = Date() }
     }
 }
