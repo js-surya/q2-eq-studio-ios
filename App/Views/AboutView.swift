@@ -61,7 +61,7 @@ struct SettingsView: View {
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("The accent colours the app's buttons and highlights. The graph keeps EQ Studio's own colours.")
+                Text("The accent colours the app and the graph's curve and dots. EQ Studio is the page's own blue; bands on the right side alone stay orange.")
             }
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)

@@ -67,7 +67,10 @@ final class Studio {
 
     /// The app's accent, kept between launches; the graph keeps EQ Studio's own colours whatever it is.
     var accentChoice = AccentChoice(rawValue: UserDefaults.standard.string(forKey: "eq.accent") ?? "") ?? .studio {
-        didSet { UserDefaults.standard.set(accentChoice.rawValue, forKey: "eq.accent") }
+        didSet {
+            UserDefaults.standard.set(accentChoice.rawValue, forKey: "eq.accent")
+            BandColor.studioChosen = accentChoice == .studio
+        }
     }
     var accent: Color { accentChoice.color }
 
@@ -92,6 +95,7 @@ final class Studio {
             preset = normalize(kept)
         }
         work()
+        BandColor.studioChosen = accentChoice == .studio
     }
 
     private func store() {

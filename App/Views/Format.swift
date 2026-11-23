@@ -50,13 +50,18 @@ enum Format {
 /// A band's colour, as the page has it (web/style.css, light and dark): the accent, orange for the right
 /// side alone, faint when off; the picked dot filled with the accent's fill.
 enum BandColor {
-    /// EQ Studio's blue by name: Color.accentColor would follow the app's chosen accent.
-    static let accent = Color("AccentColor")
+    /// The graph's colour: the app's accent (Color.accentColor follows the chosen one), which with EQ Studio
+    /// chosen is EQ Studio's blue.
+    static let accent = Color.accentColor
+    /// EQ Studio's own blue, by name, whatever accent is chosen.
+    static let studio = Color("AccentColor")
+    /// Whether EQ Studio's accent is the chosen one: then the picked dot takes the page's own fill.
+    nonisolated(unsafe) static var studioChosen = true
     static let right = Color("RightSide")
     static let faint = Color("Faint")
     static let fill = Color("AccentFill")
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : accent }
-    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : fill }
+    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : studioChosen ? fill : accent }
 }
 
 /// What this device is: keys and a pointer are a Mac's and an iPad's, not a phone's.
@@ -105,7 +110,7 @@ enum AccentChoice: String, CaseIterable, Identifiable {
     var title: String { self == .studio ? "EQ Studio" : rawValue.capitalized }
     var color: Color {
         switch self {
-        case .studio: BandColor.accent
+        case .studio: BandColor.studio
         case .lively: Color(red: 0x1D / 255, green: 0xB9 / 255, blue: 0x54 / 255) // a bright green, #1DB954
         case .indigo: .indigo
         case .purple: .purple
