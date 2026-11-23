@@ -66,7 +66,7 @@ struct SettingsView: View {
 /// About: what this is, who made it, whose work it stands on, and every contributor to Q2 Pod by their
 /// GitHub name, read from GitHub (the list built in when offline).
 struct AboutView: View {
-    @State private var contributors: [Contributor] = Contributor.builtIn
+    @State private var contributors: [Contributor] = Contributor.kept
 
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -227,7 +227,7 @@ struct Acknowledgement: Identifiable {
     ]
 }
 
-struct Contributor: Identifiable, Decodable, Sendable {
+struct Contributor: Identifiable, Codable, Sendable {
     let login: String
     var id: String { login }
     var profile: URL { URL(string: "https://github.com/\(login)")! }
@@ -245,7 +245,14 @@ struct Contributor: Identifiable, Decodable, Sendable {
         "gukey", "0pac1ty", "harpmudd", "rafaelxaugusto", "czdaniel",
     ].map { Contributor(login: $0) }
 
-    /// GitHub's list today: anyone who has joined since shows too.
+    private static let keptKey = "q2pod-contributors"
+
+    /// The list GitHub gave last time, else the one built in: what shows offline, and until GitHub answers.
+    static var kept: [Contributor] {
+        UserDefaults.standard.data(forKey: keptKey).flatMap { try? JSONDecoder().decode([Contributor].self, from: $0) } ?? builtIn
+    }
+
+    /// GitHub's list today: anyone who has joined since shows too. Kept for next time.
     static func fetch() async -> [Contributor]? {
         var all: [Contributor] = []
         for page in 1...5 {
@@ -258,6 +265,8 @@ struct Contributor: Identifiable, Decodable, Sendable {
             all += list
             if list.count < 100 { break }
         }
-        return all.isEmpty ? nil : all
+        if all.isEmpty { return nil }
+        if let d = try? JSONEncoder().encode(all) { UserDefaults.standard.set(d, forKey: keptKey) }
+        return all
     }
 }
