@@ -22,7 +22,6 @@ final class Studio {
         if let s = ProcessInfo.processInfo.environment["EQS_LINK"], let l = Q2Link(scanned: s) { link = l }
         #endif
         client = link.map(Q2Client.init)
-        if let data = try? Data(contentsOf: Studio.catalogueFile) { catalogue = try? Catalogue(json: data) }
     }
 
     func connect(_ link: Q2Link) {
@@ -305,16 +304,27 @@ final class Studio {
         URL.cachesDirectory.appending(path: "presets.json")
     }
 
+    /// The catalogue from the card, the copy kept from last time shown first. Its 5 MB are read and
+    /// decoded off the main thread, so a pull to refresh never stalls the scrolling.
     func loadCatalogue() async {
         guard let client, !catalogueLoading else { return }
         catalogueLoading = true
         defer { catalogueLoading = false }
+        let file = Studio.catalogueFile
+        if catalogue == nil, let kept = await Task.detached(priority: .userInitiated, operation: {
+            (try? Data(contentsOf: file)).flatMap { try? Catalogue(json: $0) }
+        }).value {
+            catalogue = kept
+        }
         do {
             let data = try await client.presets()
-            let fresh = try Catalogue(json: data)
-            catalogue = fresh
+            let fresh = try await Task.detached(priority: .utility) {
+                let c = try Catalogue(json: data)
+                try? data.write(to: file)
+                return c
+            }.value
+            if fresh.presets.count != catalogue?.presets.count || fresh.commit != catalogue?.commit { catalogue = fresh }
             catalogueError = nil
-            try? data.write(to: Studio.catalogueFile)
         } catch {
             if catalogue == nil { catalogueError = error.localizedDescription }
         }

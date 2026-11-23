@@ -89,7 +89,7 @@ struct PresetsView: View {
         if search.trimmingCharacters(in: .whitespaces).isEmpty {
             return c.top.filter { scope.type == nil || $0.type == scope.type }
         }
-        return Array(c.search(search, type: scope.type).prefix(200))
+        return c.search(search, type: scope.type, limit: 200)
     }
 
     private func pick(_ entry: Catalogue.Entry) {

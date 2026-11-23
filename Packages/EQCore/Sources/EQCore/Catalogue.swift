@@ -30,19 +30,34 @@ public struct Catalogue: Decodable, Sendable {
     public let credit: String
     public let commit: String?
     public let presets: [Entry]
+    /// The 25 picked to show before a search, in their order.
+    public let top: [Entry]
+    /// Each preset's name and source in lower case, worked out once for searching.
+    private let hay: [String]
+
+    enum CodingKeys: String, CodingKey { case credit, commit, presets }
+
+    public init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        credit = try c.decode(String.self, forKey: .credit)
+        commit = try c.decodeIfPresent(String.self, forKey: .commit)
+        presets = try c.decode([Entry].self, forKey: .presets)
+        top = presets.filter { $0.top != nil }.sorted { $0.top! < $1.top! }
+        hay = presets.map { "\($0.name) \($0.source)".lowercased() }
+    }
 
     public init(json: Data) throws { self = try JSONDecoder().decode(Catalogue.self, from: json) }
 
-    /// The 25 picked to show before a search.
-    public var top: [Entry] { presets.filter { $0.top != nil }.sorted { $0.top! < $1.top! } }
-
-    /// Every word of the search in the name or the source, as typed in any case.
-    public func search(_ text: String, type: String? = nil) -> [Entry] {
+    /// Every word of the search in the name or the source, in any case; at most limit.
+    public func search(_ text: String, type: String? = nil, limit: Int = .max) -> [Entry] {
         let terms = text.lowercased().split(separator: " ").map(String.init)
-        return presets.filter { entry in
-            if let type, entry.type != type { return false }
-            let hay = "\(entry.name) \(entry.source)".lowercased()
-            return terms.allSatisfy { hay.contains($0) }
+        var out: [Entry] = []
+        for (i, entry) in presets.enumerated() where type == nil || entry.type == type {
+            if terms.allSatisfy({ hay[i].contains($0) }) {
+                out.append(entry)
+                if out.count == limit { break }
+            }
         }
+        return out
     }
 }
