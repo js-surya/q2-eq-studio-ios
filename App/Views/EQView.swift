@@ -6,7 +6,8 @@ import SwiftUI
 struct EQView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.horizontalSizeClass) private var width
-    @State private var showBass = false
+    @AppStorage("eq.fold.bands") private var showBands = true
+    @AppStorage("eq.fold.knobs") private var showKnobs = true
     @State private var note: String?
 
     var body: some View {
@@ -34,6 +35,7 @@ struct EQView: View {
             .background(Color.groupedBackground)
         List(selection: $studio.selected) {
             Section {
+              if showBands {
                 if width == .regular {
                     BandTableHeader().selectionDisabled()
                 }
@@ -58,25 +60,35 @@ struct EQView: View {
                 Button("Add Band", systemImage: "plus.circle.fill") { studio.addBand() }
                     .disabled(studio.preset.bands.count >= EQ.maxBands)
                     .selectionDisabled()
+              }
             } header: {
-                HStack {
-                    Text("Bands")
-                    Spacer()
+                Fold(title: "Bands", open: $showBands) {
                     Text("\(studio.preset.bands.count) of \(EQ.maxBands)").monospacedDigit()
                 }
             } footer: {
-                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve.")
+                if showBands {
+                    Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve.")
+                }
             }
 
             Section {
-                ForEach(Knob.allCases, id: \.self) { knob in
-                    KnobRow(knob: knob, note: $note)
+                if showKnobs {
+                    ForEach(Knob.allCases, id: \.self) { knob in
+                        KnobRow(knob: knob, note: $note)
+                    }
+                    .selectionDisabled()
                 }
-                .selectionDisabled()
             } header: {
-                Text("Bass and Treble")
+                Fold(title: "Bass and Treble", open: $showKnobs) {
+                    let b = Knob.bass.gain(in: studio.preset), t = Knob.treble.gain(in: studio.preset)
+                    if !showKnobs && (b != 0 || t != 0) {
+                        Text("\(Format.dB(b, digits: 1)) · \(Format.dB(t, digits: 1))").monospacedDigit()
+                    }
+                }
             } footer: {
-                Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
+                if showKnobs {
+                    Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
+                }
             }
 
             PreampSection()
@@ -152,10 +164,12 @@ private struct BandRow: View {
 
 private struct PreampSection: View {
     @Environment(Studio.self) private var studio
+    @AppStorage("eq.fold.output") private var open = true
 
     var body: some View {
         let p = studio.preset
         Section {
+          if open {
             Toggle("Auto Preamp", isOn: Binding(get: { p.auto }, set: { v in studio.change { $0.auto = v } }))
             if p.auto {
                 LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(studio.autoFigure))
@@ -170,10 +184,13 @@ private struct PreampSection: View {
             Picker("Draw the curve at", selection: Binding(get: { studio.rate }, set: { studio.rate = $0 })) {
                 ForEach(Studio.rates, id: \.self) { r in Text(r == 44100 ? "44.1 kHz" : "\(Int(r / 1000)) kHz").tag(r) }
             }
+          }
         } header: {
-            Text("Output")
+            Fold(title: "Output", open: $open) {
+                if !open { Text(p.auto ? "Auto" : Format.dB(p.preamp)).monospacedDigit() }
+            }
         } footer: {
-            Text(p.auto ? "Auto works the preamp out on the Q2 for each song's rate, so loud music never clips." : "")
+            if open { Text(p.auto ? "Auto works the preamp out on the Q2 for each song's rate, so loud music never clips." : "") }
         }
         .selectionDisabled()
     }
@@ -502,5 +519,35 @@ struct Marquee: View {
                     .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { full = $0 }
             }
             .onChange(of: text) { start = Date() }
+    }
+}
+
+/// A section's title that folds it: tap to hide or show what's under it, a chevron saying which, and
+/// something short beside it (a count, a value) that stays in sight while folded.
+private struct Fold<Extra: View>: View {
+    let title: String
+    @Binding var open: Bool
+    @ViewBuilder let extra: () -> Extra
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { open.toggle() }
+        } label: {
+            HStack(spacing: 6) {
+                Text(title)
+                Spacer()
+                extra().foregroundStyle(.secondary)
+                Image(systemName: "chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .rotationEffect(.degrees(open ? 0 : -90))
+                    .foregroundStyle(.tint)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: open)
+        .accessibilityLabel(title)
+        .accessibilityValue(open ? "Shown" : "Hidden")
+        .accessibilityHint("Double-tap to \(open ? "hide" : "show") it")
     }
 }

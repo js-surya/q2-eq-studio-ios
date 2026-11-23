@@ -1,7 +1,7 @@
 # xcodegen: the Xcode project is made from this file (xcodegen generate).
 name: EQStudio
 options:
-  bundleIdPrefix: io.github.q2pod
+  bundleIdPrefix: me.suryajs
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -29,7 +29,7 @@ targets:
       - package: EQCore
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: io.github.q2pod.eqstudio
+        PRODUCT_BUNDLE_IDENTIFIER: me.suryajs.eqstudio
         PRODUCT_NAME: EQ Studio
         TARGETED_DEVICE_FAMILY: "1,2"
         SUPPORTS_MACCATALYST: NO
