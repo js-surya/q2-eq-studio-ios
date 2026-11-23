@@ -6,6 +6,9 @@ import SwiftUI
 /// Settings: the Q2 this device is signed in to, the look, the graph's extras, the keys, and About.
 struct SettingsView: View {
     @Environment(Studio.self) private var studio
+    @Environment(\.dismiss) private var dismiss
+    /// Opened from the EQ tab's gear: with a Done button.
+    var sheet = false
     @State private var confirmDisconnect = false
     @State private var addAddress = false
     @State private var showAbout = false
@@ -49,6 +52,9 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .navigationTitle("Settings")
+        .toolbar {
+            if sheet { ToolbarItem(placement: .confirmationAction) { Button("Done", systemImage: "checkmark") { dismiss() } } }
+        }
         .navigationDestination(for: String.self) { _ in AboutView() }
         .navigationDestination(isPresented: $showAbout) { AboutView() }
         #if DEBUG

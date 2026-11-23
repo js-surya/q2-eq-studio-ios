@@ -80,7 +80,7 @@ extension Studio {
 struct KeysSheet: View {
     @Environment(\.dismiss) private var dismiss
     private let keys: [(String, String)] = [
-        ("1, 2, 3, 4", "EQ, Presets, Response, Card"),
+        ("1, 2, 3, 4", "EQ, Presets, Response, Card (⌘1 to ⌘4 even while typing; ⌘F, Search)"),
         ("Space", "Inspect the curve: a line at the pointer, and the gain there"),
         ("Q, W, E", "The picked band: peak, low shelf, high shelf"),
         ("S", "That band on or off"),

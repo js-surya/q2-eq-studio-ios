@@ -251,6 +251,9 @@ private struct EQToolbar: ToolbarContent {
                     Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
                 }
             }
+            #if os(iOS)
+            Button("Settings", systemImage: "gearshape") { studio.showSettings = true }
+            #endif
         }
         if studio.live.on {
             ToolbarItem(placement: .navigation) {

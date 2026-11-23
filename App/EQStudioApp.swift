@@ -36,14 +36,22 @@ struct EQStudioApp: App {
                 Button("Open File…") { studio.cardAsked = "open" }.keyboardShortcut("o")
             }
             CommandGroup(before: .sidebar) {
-                ForEach(Array(["EQ", "Presets", "Response", "Card", "Settings"].enumerated()), id: \.offset) { i, name in
+                ForEach(Array(["EQ", "Presets", "Response", "Card"].enumerated()), id: \.offset) { i, name in
                     Button(name) { studio.tabAsked = i }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
                 }
+                Button("Search") { studio.tabAsked = 4 }.keyboardShortcut("f")
                 Divider()
             }
             CommandGroup(replacing: .help) {
                 Button("Keyboard and Mouse") { studio.showKeys = true }.keyboardShortcut("/", modifiers: [.command, .shift])
             }
+        }
+        #endif
+        #if os(macOS)
+        Settings {
+            NavigationStack { SettingsView() }
+                .environment(studio)
+                .frame(minWidth: 480, minHeight: 560)
         }
         #endif
     }
@@ -59,7 +67,7 @@ struct RootView: View {
         case "presets": return .presets
         case "response": return .response
         case "card": return .card
-        case "settings", "about": return .settings
+        case "search": return .search
         default: break
         }
         #endif
@@ -67,7 +75,7 @@ struct RootView: View {
     }()
     @State private var showSignIn = false
 
-    enum Tab: Hashable { case eq, presets, response, card, settings }
+    enum Tab: Hashable { case eq, presets, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
     @FocusState private var keys: Bool
 
@@ -89,8 +97,8 @@ struct RootView: View {
                     SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
                         NavigationStack { CardView() }
                     }
-                    SwiftUI.Tab("Settings", systemImage: "gearshape", value: Tab.settings) {
-                        NavigationStack { SettingsView() }
+                    SwiftUI.Tab(value: Tab.search, role: .search) {
+                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
                     }
                 }
                 .tabViewStyle(.sidebarAdaptable)
@@ -128,10 +136,15 @@ struct RootView: View {
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .presets } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 .onChange(of: studio.tabAsked) {
-                    if let i = studio.tabAsked { tab = [Tab.eq, .presets, .response, .card, .settings][i]; studio.tabAsked = nil }
+                    if let i = studio.tabAsked { tab = [Tab.eq, .presets, .response, .card, .search][i]; studio.tabAsked = nil }
                 }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
+                #if os(iOS)
+                .sheet(isPresented: Binding(get: { studio.showSettings }, set: { studio.showSettings = $0 })) {
+                    NavigationStack { SettingsView(sheet: true) }
+                }
+                #endif
                 .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
                 .sheet(isPresented: $showSignIn) { SignInForm() }
                 .dropDestination(for: URL.self) { urls, _ in
