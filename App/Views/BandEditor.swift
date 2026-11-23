@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The picked band, in an inspector: beside the EQ on an iPad, a Mac or an unfolded iPhone Duo, a sheet on
+// The picked band, in an inspector: beside the EQ on an iPad or an unfolded iPhone Duo, a sheet on
 // an iPhone. Frequency and Q on log sliders, each value typed in place too.
 import EQCore
 import SwiftUI
@@ -153,9 +153,7 @@ private struct TypedNumber: View {
                 .monospacedDigit()
                 .frame(width: 80)
                 .focused($focused)
-                #if os(iOS)
                 .keyboardType(.decimalPad)
-                #endif
                 .onSubmit(commit)
                 .onChange(of: focused) { if !focused { commit() } }
             if !unit.isEmpty { Text(unit).foregroundStyle(.secondary) }

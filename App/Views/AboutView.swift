@@ -128,7 +128,7 @@ struct AboutView: View {
             }
 
             Section("Developer") {
-                Person(login: Contributor.developer, name: "Surya JS", role: "EQ Studio for iPhone, iPad and Mac")
+                Person(login: Contributor.developer, name: "Surya JS", role: "EQ Studio for iPhone and iPad")
             }
 
             Section("Built On") {
@@ -345,7 +345,7 @@ private struct ContributorTicker: View {
 
 extension View {
     /// The gear at the top of a tab, on an iPhone and an iPad: Settings as a page of that tab, Back to it.
-    /// (A Mac has its Settings window.) The debug EQS_SETTINGS opens it on the EQ tab.
+    /// The debug EQS_SETTINGS opens it.
     func settingsButton() -> some View { modifier(SettingsButton()) }
 }
 
@@ -354,7 +354,6 @@ private struct SettingsButton: ViewModifier {
     @State private var open = false
 
     func body(content: Content) -> some View {
-        #if os(iOS)
         content
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -363,8 +362,6 @@ private struct SettingsButton: ViewModifier {
             }
             .navigationDestination(isPresented: $open) { SettingsView() }
             .onChange(of: studio.showSettings) { if studio.showSettings { open = true; studio.showSettings = false } }
-        #else
-        content
-        #endif
+            .onAppear { if studio.showSettings { open = true; studio.showSettings = false } }
     }
 }

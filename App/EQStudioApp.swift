@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// EQ Studio for iPhone, iPhone Duo, iPad and Mac: one SwiftUI app. Its tabs are a tab bar on an iPhone and
-// a sidebar where there's room (an iPad, a Mac, an unfolded iPhone Duo), as the system lays them out.
+// EQ Studio for iPhone, iPhone Duo and iPad: one SwiftUI app. Its tabs are a tab bar on an iPhone and a
+// sidebar where there's room (an iPad, an unfolded iPhone Duo), as the system lays them out.
 import EQCore
 import SwiftUI
 
@@ -13,48 +13,6 @@ struct EQStudioApp: App {
             RootView()
                 .environment(studio)
         }
-        #if os(macOS)
-        .defaultSize(width: 1100, height: 760)
-        .commands {
-            CommandGroup(replacing: .undoRedo) {
-                Button("Undo") { studio.undo() }.keyboardShortcut("z").disabled(!studio.canUndo)
-                Button("Redo") { studio.redo() }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!studio.canRedo)
-                Button("Redo") { studio.redo() }.keyboardShortcut("y").disabled(!studio.canRedo)
-            }
-            CommandGroup(after: .pasteboard) {
-                Divider()
-                Button("Copy EQ as Text") { studio.copyEQ() }.keyboardShortcut("c", modifiers: [.command, .shift])
-                Button("Paste EQ") {
-                    if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
-                }
-                .keyboardShortcut("v", modifiers: [.command, .shift])
-            }
-            CommandGroup(replacing: .saveItem) {
-                Button("Save to the Card…") { studio.cardAsked = "save" }.keyboardShortcut("s")
-            }
-            CommandGroup(replacing: .newItem) {
-                Button("Open File…") { studio.cardAsked = "open" }.keyboardShortcut("o")
-            }
-            CommandGroup(before: .sidebar) {
-                ForEach(Array(["EQ", "Presets", "Response", "Card"].enumerated()), id: \.offset) { i, name in
-                    Button(name) { studio.tabAsked = i }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
-                }
-                Button("Search Presets") { studio.tabAsked = 4; studio.searchAsked = UUID() }.keyboardShortcut("f")
-                Divider()
-            }
-            CommandGroup(replacing: .help) {
-                Button("Keyboard and Mouse") { studio.showKeys = true }.keyboardShortcut("/", modifiers: [.command, .shift])
-            }
-        }
-        #endif
-        #if os(macOS)
-        Settings {
-            NavigationStack { SettingsView() }
-                .environment(studio)
-                .tint(studio.accent)
-                .frame(minWidth: 480, minHeight: 560)
-        }
-        #endif
     }
 }
 
@@ -105,11 +63,6 @@ struct RootView: View {
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
-                #if os(macOS)
-                .background { KeyMonitor { name, shift, again in
-                    studio.key(name, shift: shift, again: again) { i in tab = [Tab.eq, .search, .response, .card][i] }
-                } }
-                #else
                 .focusable()
                 .focusEffectDisabled()
                 .focused($keys)
@@ -132,7 +85,6 @@ struct RootView: View {
                     }
                     return handled ? .handled : .ignored
                 }
-                #endif
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 // Presets opens with the cursor in its search box.
@@ -142,9 +94,6 @@ struct RootView: View {
                 .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
                 .task { if ProcessInfo.processInfo.environment["EQS_TOAST"] != nil { try? await Task.sleep(for: .seconds(2)); studio.say("“Meze Alba” is playing.", undo: true) } }
                 #endif
-                .onChange(of: studio.tabAsked) {
-                    if let i = studio.tabAsked { tab = [Tab.eq, .search, .response, .card, .search][i]; studio.tabAsked = nil }
-                }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
 
@@ -181,18 +130,12 @@ struct RootView: View {
 /// What the Q2 is doing with this EQ, under the tabs: live, sending, an editor only, or what went wrong.
 struct LiveStatus: View {
     @Environment(Studio.self) private var studio
-    #if os(iOS)
     @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-    #endif
     let signIn: () -> Void
 
     /// Beside the tab bar once it has collapsed: one short line.
     private var inline: Bool {
-        #if os(iOS)
         placement == .inline
-        #else
-        false
-        #endif
     }
 
     var body: some View {
@@ -260,27 +203,16 @@ struct LiveStatus: View {
 }
 
 extension View {
-    /// Under the tabs on an iPhone and an iPad, the bar's own accessory; at the window's foot on a Mac.
+    /// Under the tabs: the bar's own accessory.
     @ViewBuilder func liveStatus(@ViewBuilder _ status: () -> some View) -> some View {
-        #if os(iOS)
         // On an iPhone the tab bar collapses as the page scrolls down, the status beside it, and comes back up.
         tabViewBottomAccessory { status() }
             .tabBarMinimizeBehavior(.onScrollDown)
-        #else
-        let s = status()
-        safeAreaInset(edge: .bottom) {
-            s.padding(.vertical, 8).frame(maxWidth: 560).glassEffect(.regular, in: .capsule).padding(.bottom, 10)
-        }
-        #endif
     }
 
-    /// Settings' look: inset grouped on an iPhone and an iPad, the Mac's own inset list.
+    /// Settings' look: inset grouped.
     @ViewBuilder func groupedList() -> some View {
-        #if os(iOS)
         listStyle(.insetGrouped)
-        #else
-        listStyle(.inset)
-        #endif
     }
 }
 
@@ -323,49 +255,3 @@ struct ThemePicker: View {
     }
 }
 
-#if os(macOS)
-import AppKit
-
-/// The page's keys on a Mac: a key-down monitor, which leaves every key to a text field being typed in
-/// (and to the menus, with ⌘, ⌃ or ⌥), so typing a name or a value never moves a band.
-private struct KeyMonitor: NSViewRepresentable {
-    let key: (String, Bool, Bool) -> Bool
-
-    final class Box: NSView {
-        var key: ((String, Bool, Bool) -> Bool)?
-        var monitor: Any?
-        override func viewDidMoveToWindow() {
-            if let monitor { NSEvent.removeMonitor(monitor) }
-            monitor = window == nil ? nil : NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
-                guard let self, let win = self.window, e.window === win, win.attachedSheet == nil,
-                      !(win.firstResponder is NSText), !(win.firstResponder is NSTextField) else { return e }
-                if !e.modifierFlags.intersection([.command, .control, .option]).isEmpty { return e }
-                let name: String
-                switch e.keyCode {
-                case 123: name = "left"
-                case 124: name = "right"
-                case 126: name = "up"
-                case 125: name = "down"
-                case 51, 117: name = "delete"
-                case 53: name = "escape"
-                case 49: name = " "
-                default: name = (e.charactersIgnoringModifiers ?? "").lowercased()
-                }
-                let handled = self.key?(name, e.modifierFlags.contains(.shift), e.isARepeat) == true
-                if handled && name == "/" {
-                    // The search box is the toolbar's: the cursor put in it once the tab is there.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        for item in win.toolbar?.items ?? [] {
-                            if let search = item as? NSSearchToolbarItem { win.makeFirstResponder(search.searchField); break }
-                        }
-                    }
-                }
-                return handled ? nil : e
-            }
-        }
-    }
-
-    func makeNSView(context: Context) -> Box { Box() }
-    func updateNSView(_ v: Box, context: Context) { v.key = key }
-}
-#endif

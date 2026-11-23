@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The keys, as EQ Studio's page has them (PEQdB Studio's where it has them): on a Mac, and on an iPad or
+// The keys, as EQ Studio's page has them (PEQdB Studio's where it has them): on an iPad or
 // iPhone with a keyboard. A key the focused field takes (typing, a table cell's arrows) never gets here.
 import EQCore
 import SwiftUI
@@ -56,7 +56,6 @@ extension Studio {
             let anyOn = preset.bands.contains { $0.on }
             change { p in for k in p.bands.indices { p.bands[k].on = !anyOn } }
         case "v": if once { showEachBand.toggle() }
-        case "f": if once { zoom = nil }
         case "c":
             guard once else { break }
             if live.on { setMode(live.mode != "peq") } else { say("EQ on and off is for a Q2 with live EQ.") }
@@ -80,7 +79,7 @@ extension Studio {
 struct KeysSheet: View {
     @Environment(\.dismiss) private var dismiss
     private let keys: [(String, String)] = [
-        ("1, 2, 3, 4", "EQ, Presets, Response, Card; ⌘1 to ⌘4 even while typing"),
+        ("1, 2, 3, 4", "EQ, Presets, Response, Card"),
         ("Space", "Inspect the curve: a line at the pointer, and the gain there"),
         ("Q, W, E", "The picked band: peak, low shelf, high shelf"),
         ("S", "That band on or off"),
@@ -92,7 +91,6 @@ struct KeysSheet: View {
         ("B", "Every band off, or on"),
         ("V", "Each band's own curve"),
         ("C", "EQ on or off on the Q2"),
-        ("F", "Fit the curve to the graph, after the wheel zoomed it"),
         ("/", "Search the presets"),
         ("⌘Z, ⇧⌘Z", "Undo, redo"),
         ("⇧⌘C, ⇧⌘V", "Copy the EQ as text, paste one"),
@@ -103,9 +101,6 @@ struct KeysSheet: View {
     private let mouse: [(String, String)] = [
         ("Drag a dot", "Move its band"),
         ("Drag the curve", "Move the band that shapes it there"),
-        ("Wheel on a dot", "Its Q (with Shift, finer)"),
-        ("Wheel elsewhere", "Zoom the dB scale"),
-        ("Press the 0 dB line", "Add a band there, and drag it"),
         ("Double-click", "Add a band"),
         ("A file dropped on the window", "Open it"),
     ]

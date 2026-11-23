@@ -59,11 +59,9 @@ final class Studio {
     var showKeys = false
     var showSettings = false // the EQ tab's gear, on an iPhone and an iPad
     var pasteAsked = false // the EQ tab's menu: the Paste sheet
-    var tabAsked: Int? // ⌘1 to ⌘5 on a Mac: EQ, Presets, Response, Card, Settings
     var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
     var searchAsked: UUID? // / asked for the presets' search
     var cellFocus: CellFocus? // the band table's cell Return moved to
-    var zoom: Double? // the wheel's dB range on a Mac; nil: the graph's own
 
     /// The app's accent, kept between launches; the graph keeps EQ Studio's own colours whatever it is.
     var accentChoice = AccentChoice(rawValue: UserDefaults.standard.string(forKey: "eq.accent") ?? "") ?? .studio {

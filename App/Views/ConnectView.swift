@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Signing in to EQ Studio on the Q2: scan its QR code, or type the address and PIN under it.
 import SwiftUI
-#if os(iOS)
 import AVFoundation
 import VisionKit
-#endif
 
 struct ConnectView: View {
     @Environment(Studio.self) private var studio
@@ -51,7 +49,6 @@ struct ConnectView: View {
                 .opacity(shown ? 1 : 0)
 
                 VStack(spacing: 12) {
-                    #if os(iOS)
                     if DataScannerViewController.isSupported {
                         Button { scanning = true } label: {
                             Label("Scan Code", systemImage: "qrcode.viewfinder")
@@ -62,7 +59,6 @@ struct ConnectView: View {
                         .buttonStyle(.glassProminent)
                         .controlSize(.extraLarge)
                     }
-                    #endif
                     Button { typing = true } label: {
                         Label("Enter Address and PIN", systemImage: "keyboard")
                             .frame(maxWidth: .infinity)
@@ -86,11 +82,9 @@ struct ConnectView: View {
         .background { Backdrop() }
         .onAppear { withAnimation(.spring(duration: 0.8, bounce: 0.25)) { shown = true } }
         .sheet(isPresented: $typing) { SignInForm() }
-        #if os(iOS)
         .fullScreenCover(isPresented: $scanning) {
             ScanView(typeInstead: { Task { try? await Task.sleep(for: .milliseconds(450)); typing = true } })
         }
-        #endif
         #if DEBUG
         .onAppear {
             if ProcessInfo.processInfo.environment["EQS_SIGNIN"] != nil { typing = true }
@@ -187,10 +181,8 @@ struct SignInForm: View {
                             TextField("192.168.1.20:8020", text: $address)
                                 .focused($field, equals: .address)
                                 .autocorrectionDisabled()
-                                #if os(iOS)
                                 .keyboardType(.URL)
                                 .textInputAutocapitalization(.never)
-                                #endif
                                 .submitLabel(.next)
                                 .onSubmit { field = .pin }
                         }
@@ -207,10 +199,8 @@ struct SignInForm: View {
                                 // The real field, invisible over the boxes: the keyboard, paste and the code autofill.
                                 TextField("", text: Binding(get: { pin }, set: { pin = String($0.filter(\.isNumber).prefix(6)); if pin.count == 6 { signIn() } }))
                                     .focused($field, equals: .pin)
-                                    #if os(iOS)
                                     .keyboardType(.numberPad)
                                     .textContentType(.oneTimeCode)
-                                    #endif
                                     .foregroundStyle(.clear)
                                     .tint(.clear)
                                     .opacity(0.02)
@@ -319,7 +309,6 @@ private struct PinBoxes: View {
     }
 }
 
-#if os(iOS)
 /// The camera, reading EQ Studio's QR code.
 private struct ScanView: View {
     @Environment(Studio.self) private var studio
@@ -567,4 +556,3 @@ private struct QRScanner: UIViewControllerRepresentable {
         }
     }
 }
-#endif

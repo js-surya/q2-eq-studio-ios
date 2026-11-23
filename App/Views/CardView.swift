@@ -21,9 +21,7 @@ struct CardView: View {
         List {
             Section {
                 Button("Save to the Card…", systemImage: "square.and.arrow.down") { askSave() }
-                    #if os(iOS)
                     .keyboardShortcut("s", modifiers: .command)
-                    #endif
             } footer: {
                 if studio.live.local {
                     Text("This Q2 Pod can't take the EQ live. Save it here, then on the Q2 open the EQ page's Import from SD /EQ.")
@@ -63,9 +61,7 @@ struct CardView: View {
 
             Section {
                 Button("Open File…", systemImage: "folder") { importing = true }
-                    #if os(iOS)
                     .keyboardShortcut("o", modifiers: .command)
-                    #endif
                 ShareLink(item: PresetFile(name: fileName(studio.preset.name), text: studio.text),
                           preview: SharePreview(fileName(studio.preset.name))) {
                     Label("Share This EQ", systemImage: "square.and.arrow.up")
@@ -209,20 +205,11 @@ struct PresetFile: Transferable {
 
 enum Clipboard {
     static func copy(_ s: String) {
-        #if os(iOS)
         UIPasteboard.general.string = s
-        #else
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(s, forType: .string)
-        #endif
     }
 
     static func text() -> String? {
-        #if os(iOS)
         UIPasteboard.general.string
-        #else
-        NSPasteboard.general.string(forType: .string)
-        #endif
     }
 }
 
@@ -306,9 +293,7 @@ struct PasteSheet: View {
                         .font(.body.monospaced())
                         .frame(minHeight: 220)
                         .autocorrectionDisabled()
-                        #if os(iOS)
                         .textInputAutocapitalization(.never)
-                        #endif
                 } header: {
                     Text("The EQ's text")
                 } footer: {

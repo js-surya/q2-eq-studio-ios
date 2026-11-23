@@ -65,11 +65,7 @@ struct EQView: View {
                     Text("\(studio.preset.bands.count) of \(EQ.maxBands)").monospacedDigit()
                 }
             } footer: {
-                #if os(macOS)
-                Text("Drag a dot or the curve to move a band. Press on the 0 dB line to add one. The wheel on a dot changes its Q; elsewhere it zooms. Press ? for every key.")
-                #else
-                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band.")
-                #endif
+                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve.")
             }
 
             Section {
@@ -391,19 +387,11 @@ private struct Cell: View {
 extension Color {
     /// The grouped list's own background, so the pinned graph sits on it.
     static var groupedBackground: Color {
-        #if os(iOS)
         Color(uiColor: .systemGroupedBackground)
-        #else
-        Color(nsColor: .controlBackgroundColor)
-        #endif
     }
 
     static var rowBackground: Color {
-        #if os(iOS)
         Color(uiColor: .secondarySystemGroupedBackground)
-        #else
-        Color(nsColor: .controlBackgroundColor)
-        #endif
     }
 }
 
@@ -427,10 +415,6 @@ private struct ToolStrip: View {
                 if Device.hasPointer {
                     Tool(title: "Inspect", icon: "scope", on: studio.inspect) { studio.inspect.toggle() }
                         .help("A line at the pointer, and the gain there (Space)")
-                }
-                if studio.zoom != nil {
-                    Tool(title: "Fit", icon: "arrow.up.and.down.and.arrow.left.and.right", on: false) { studio.zoom = nil }
-                        .help("Fit the curve to the graph (F)")
                 }
                 Tool(title: "Copy", icon: "doc.on.doc", on: false) { studio.copyEQ() }
                     .help("The EQ as a preset's text")

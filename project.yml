@@ -4,7 +4,6 @@ options:
   bundleIdPrefix: io.github.q2pod
   deploymentTarget:
     iOS: "26.0"
-    macOS: "26.0"
   createIntermediateGroups: true
 packages:
   EQCore:
@@ -19,7 +18,7 @@ settings:
 targets:
   EQStudio:
     type: application
-    supportedDestinations: [iOS, macOS]
+    supportedDestinations: [iOS]
     sources:
       - path: App
         excludes: ["AppIcon.icon"]
@@ -44,10 +43,6 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown
-        ENABLE_APP_SANDBOX: YES
-        ENABLE_OUTGOING_NETWORK_CONNECTIONS: YES
-        ENABLE_USER_SELECTED_FILES: readonly
-        ENABLE_HARDENED_RUNTIME: YES
     info:
       path: App/Info.plist
       properties:

@@ -142,6 +142,9 @@ struct SearchView: View {
     /// / asked for the search: focused once this tab is on screen.
     private func takeSearch() {
         guard studio.searchAsked != nil else { return }
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["EQS_NOFOCUS"] != nil { studio.searchAsked = nil; return } // screenshots
+        #endif
         studio.searchAsked = nil
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150))

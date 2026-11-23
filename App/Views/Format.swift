@@ -65,14 +65,10 @@ enum BandColor {
     static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : choice == .studio ? fill : accent }
 }
 
-/// What this device is: keys and a pointer are a Mac's and an iPad's, not a phone's.
+/// What this device is: keys and a pointer are an iPad's, not a phone's.
 enum Device {
     @MainActor static var hasPointer: Bool {
-        #if os(macOS)
-        true
-        #else
         UIDevice.current.userInterfaceIdiom == .pad
-        #endif
     }
 }
 
