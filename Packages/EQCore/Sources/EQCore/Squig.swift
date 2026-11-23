@@ -24,6 +24,7 @@ public enum Squig {
 
     public struct Site: Sendable, Hashable, Identifiable {
         public let id, name, kind, base: String
+        public init(id: String, name: String, kind: String, base: String) { (self.id, self.name, self.kind, self.base) = (id, name, kind, base) }
     }
 
     /// Sorts as JS's stable sort with localeCompare('en', { sensitivity: 'base' }).
@@ -69,6 +70,7 @@ public enum Squig {
     public struct Phone: Sendable, Hashable, Identifiable {
         public let name, file, find: String
         public var id: String { file }
+        public init(name: String, file: String, find: String) { (self.name, self.file, self.find) = (name, file, find) }
     }
 
     static func starts(_ text: String, _ start: String) -> Bool { text.lowercased().hasPrefix(start.lowercased()) }

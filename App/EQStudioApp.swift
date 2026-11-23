@@ -36,7 +36,7 @@ struct EQStudioApp: App {
                 Button("Open File…") { studio.cardAsked = "open" }.keyboardShortcut("o")
             }
             CommandGroup(before: .sidebar) {
-                ForEach(Array(["EQ", "Presets", "Response", "Card"].enumerated()), id: \.offset) { i, name in
+                ForEach(Array(["EQ", "Search", "Response", "Card"].enumerated()), id: \.offset) { i, name in
                     Button(name) { studio.tabAsked = i }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
                 }
                 Button("Search") { studio.tabAsked = 4 }.keyboardShortcut("f")
@@ -64,7 +64,7 @@ struct RootView: View {
         #if DEBUG
         // For screenshots on a simulator: EQS_TAB=presets (response, card, about) opens on that tab.
         switch ProcessInfo.processInfo.environment["EQS_TAB"] {
-        case "presets": return .presets
+        case "presets": return .search
         case "response": return .response
         case "card": return .card
         case "search": return .search
@@ -75,7 +75,7 @@ struct RootView: View {
     }()
     @State private var showSignIn = false
 
-    enum Tab: Hashable { case eq, presets, response, card, search }
+    enum Tab: Hashable { case eq, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
     @FocusState private var keys: Bool
 
@@ -87,9 +87,6 @@ struct RootView: View {
                 TabView(selection: $tab) {
                     SwiftUI.Tab("EQ", systemImage: "slider.vertical.3", value: Tab.eq) {
                         NavigationStack { EQView() }
-                    }
-                    SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.presets) {
-                        NavigationStack { PresetsView() }
                     }
                     SwiftUI.Tab("Response", systemImage: "waveform.path.ecg", value: Tab.response) {
                         NavigationStack { ResponseView(goToEQ: { tab = .eq }) }
@@ -107,7 +104,7 @@ struct RootView: View {
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
                 #if os(macOS)
                 .background { KeyMonitor { name, shift, again in
-                    studio.key(name, shift: shift, again: again) { i in tab = [Tab.eq, .presets, .response, .card][i] }
+                    studio.key(name, shift: shift, again: again) { i in tab = [Tab.eq, .search, .response, .card][i] }
                 } }
                 #else
                 .focusable()
@@ -128,15 +125,15 @@ struct RootView: View {
                     default: name = press.characters.lowercased()
                     }
                     let handled = studio.key(name, shift: press.modifiers.contains(.shift), again: press.phase == .repeat) { i in
-                        tab = [Tab.eq, .presets, .response, .card][i]
+                        tab = [Tab.eq, .search, .response, .card][i]
                     }
                     return handled ? .handled : .ignored
                 }
                 #endif
-                .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .presets } }
+                .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 .onChange(of: studio.tabAsked) {
-                    if let i = studio.tabAsked { tab = [Tab.eq, .presets, .response, .card, .search][i]; studio.tabAsked = nil }
+                    if let i = studio.tabAsked { tab = [Tab.eq, .search, .response, .card, .search][i]; studio.tabAsked = nil }
                 }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
