@@ -94,7 +94,7 @@ struct AboutView: View {
             }
 
             Section("Developer") {
-                Person(login: Contributor.developer, role: "This app: iPhone, iPad and Mac")
+                Person(login: Contributor.developer, name: "Surya JS", role: "This app: iPhone, iPad and Mac")
             }
 
             Section("Built On") {
@@ -103,27 +103,8 @@ struct AboutView: View {
             }
 
             Section {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 14) {
-                        ForEach(contributors.filter { !Contributor.named.contains($0.login.lowercased()) }) { c in
-                            Link(destination: c.profile) {
-                                VStack(spacing: 6) {
-                                    Avatar(login: c.login, size: 52)
-                                    Text(c.login)
-                                        .font(.caption)
-                                        .lineLimit(1)
-                                        .frame(maxWidth: 76)
-                                        .foregroundStyle(.primary)
-                                }
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(c.login)
-                        }
-                    }
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, 2)
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                ContributorTicker(people: contributors.filter { !Contributor.named.contains($0.login.lowercased()) })
+                    .listRowInsets(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
             } header: {
                 Text("Q2 Pod Contributors")
             } footer: {
@@ -268,5 +249,62 @@ struct Contributor: Identifiable, Codable, Sendable {
         if all.isEmpty { return nil }
         if let d = try? JSONEncoder().encode(all) { UserDefaults.standard.set(d, forKey: keptKey) }
         return all
+    }
+}
+
+/// Q2 Pod's other contributors by name, drifting right to left in a loop. A touch holds it, so a name can
+/// be tapped (it opens their GitHub); with Reduce Motion it stands still, a row to swipe.
+private struct ContributorTicker: View {
+    let people: [Contributor]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var width: CGFloat = 0 // one copy of the row
+    @State private var start = Date()
+    @State private var held: Date?
+    private let speed: CGFloat = 28 // points a second
+
+    var body: some View {
+        if reduceMotion || people.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) { row.padding(.horizontal, 16) }
+        } else {
+            TimelineView(.animation(paused: held != nil)) { context in
+                let now = held ?? context.date
+                let shift = width > 0 ? CGFloat(now.timeIntervalSince(start)) * speed : 0
+                HStack(spacing: 0) {
+                    row.onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+                    row.accessibilityHidden(true)
+                }
+                .offset(x: width > 0 ? -shift.truncatingRemainder(dividingBy: width) : 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .clipped()
+            .mask {
+                LinearGradient(stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.06),
+                                       .init(color: .black, location: 0.94), .init(color: .clear, location: 1)],
+                               startPoint: .leading, endPoint: .trailing)
+            }
+            .simultaneousGesture(DragGesture(minimumDistance: 0)
+                .onChanged { _ in if held == nil { held = Date() } }
+                .onEnded { _ in
+                    if let h = held { start = start.addingTimeInterval(Date().timeIntervalSince(h)) }
+                    held = nil
+                })
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: 8) {
+            ForEach(people) { c in
+                Link(destination: c.profile) {
+                    Text(c.login)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, 12).padding(.vertical, 7)
+                        .background(.fill.tertiary, in: .capsule)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.trailing, 8) // the gap before the loop starts again
+        .fixedSize()
     }
 }
