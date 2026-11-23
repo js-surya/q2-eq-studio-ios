@@ -79,6 +79,11 @@ struct RootView: View {
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
+                #if os(macOS)
+                .background { KeyMonitor { name, shift, again in
+                    studio.key(name, shift: shift, again: again) { i in tab = [Tab.eq, .presets, .response, .card][i] }
+                } }
+                #else
                 .focusable()
                 .focusEffectDisabled()
                 .focused($keys)
@@ -101,6 +106,7 @@ struct RootView: View {
                     }
                     return handled ? .handled : .ignored
                 }
+                #endif
                 .onChange(of: studio.searchAsked) { if tab != .response { tab = .presets } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
@@ -235,3 +241,41 @@ struct ThemePicker: View {
         }
     }
 }
+
+#if os(macOS)
+import AppKit
+
+/// The page's keys on a Mac: a key-down monitor, which leaves every key to a text field being typed in
+/// (and to the menus, with ⌘, ⌃ or ⌥), so typing a name or a value never moves a band.
+private struct KeyMonitor: NSViewRepresentable {
+    let key: (String, Bool, Bool) -> Bool
+
+    final class Box: NSView {
+        var key: ((String, Bool, Bool) -> Bool)?
+        var monitor: Any?
+        override func viewDidMoveToWindow() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = window == nil ? nil : NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] e in
+                guard let self, let win = self.window, e.window === win, win.attachedSheet == nil,
+                      !(win.firstResponder is NSText), !(win.firstResponder is NSTextField) else { return e }
+                if !e.modifierFlags.intersection([.command, .control, .option]).isEmpty { return e }
+                let name: String
+                switch e.keyCode {
+                case 123: name = "left"
+                case 124: name = "right"
+                case 126: name = "up"
+                case 125: name = "down"
+                case 51, 117: name = "delete"
+                case 53: name = "escape"
+                case 49: name = " "
+                default: name = (e.charactersIgnoringModifiers ?? "").lowercased()
+                }
+                return self.key?(name, e.modifierFlags.contains(.shift), e.isARepeat) == true ? nil : e
+            }
+        }
+    }
+
+    func makeNSView(context: Context) -> Box { Box() }
+    func updateNSView(_ v: Box, context: Context) { v.key = key }
+}
+#endif
