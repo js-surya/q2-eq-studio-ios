@@ -44,7 +44,7 @@ struct SearchView: View {
                                     .foregroundStyle(on ? Color.white : Color.primary)
                             }
                             .buttonStyle(.plain)
-                            .glassEffect(on ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .capsule)
+                            .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .capsule)
                         }
                     }
                     .padding(.vertical, 2)
@@ -248,7 +248,7 @@ struct PresetPage: View {
                         .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                 } footer: {
                     HStack(spacing: 14) {
-                        Label("This preset", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
+                        Label("This preset", systemImage: "circle.fill").foregroundStyle(BandColor.accent)
                         Label("Playing now", systemImage: "circle.dashed").foregroundStyle(.secondary)
                     }
                     .font(.caption)
@@ -346,8 +346,8 @@ struct PreviewGraph: View {
             let mine = line(curve.map(\.left))
             var fill = mine
             fill.addLine(to: CGPoint(x: x(EQ.freqMax), y: y(0))); fill.addLine(to: CGPoint(x: x(EQ.freqMin), y: y(0))); fill.closeSubpath()
-            ctx.fill(fill, with: .color(Color.accentColor.opacity(0.14)))
-            ctx.stroke(mine, with: .color(.accentColor), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+            ctx.fill(fill, with: .color(BandColor.accent.opacity(0.14)))
+            ctx.stroke(mine, with: .color(BandColor.accent), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
             for (i, b) in preset.bands.enumerated() {
                 let c = CGPoint(x: x(b.freq), y: y(b.gain))
                 let r = CGRect(x: c.x - 9, y: c.y - 9, width: 18, height: 18)

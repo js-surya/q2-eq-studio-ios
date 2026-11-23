@@ -258,7 +258,7 @@ private struct EQToolbar: ToolbarContent {
                     Label(studio.eqOn ? "EQ On" : "EQ Off", systemImage: "power")
                 }
                 .toggleStyle(.button)
-                .tint(studio.eqOn ? .accentColor : .secondary)
+                .tint(studio.eqOn ? studio.accent : .secondary)
                 .help("EQ on or off on the Q2")
                 .keyboardShortcut("e", modifiers: .command)
             }
@@ -452,6 +452,7 @@ private struct ToolStrip: View {
 
 /// A tool: an icon and its word in a glass capsule, tinted while it's on.
 private struct Tool: View {
+    @Environment(Studio.self) private var studio
     let title: String
     let icon: String
     let on: Bool
@@ -465,7 +466,7 @@ private struct Tool: View {
                 .foregroundStyle(on ? Color.white : Color.primary)
         }
         .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(.accentColor).interactive() : .regular.interactive(), in: .capsule)
+        .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .capsule)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

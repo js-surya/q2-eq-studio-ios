@@ -112,11 +112,11 @@ struct GraphView: View {
                         fill.addLine(to: CGPoint(x: s.x(EQ.freqMax), y: s.y(0)))
                         fill.addLine(to: CGPoint(x: s.x(EQ.freqMin), y: s.y(0)))
                         fill.closeSubpath()
-                        eqCtx.fill(fill, with: .color(Color.accentColor.opacity(measured == nil ? 0.14 : 0.1)))
+                        eqCtx.fill(fill, with: .color(BandColor.accent.opacity(measured == nil ? 0.14 : 0.1)))
                     } else {
                         eqCtx.stroke(line(points.map(\.right)), with: .color(BandColor.right), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
                     }
-                    eqCtx.stroke(left, with: .color(.accentColor), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+                    eqCtx.stroke(left, with: .color(BandColor.accent), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
                     // The measurement with the EQ, bold: what you'd hear.
                     if let measured {
                         eqCtx.stroke(line(zip(measured, points).map { $0 + $1.left }), with: .color(.primary), style: StrokeStyle(lineWidth: 2.5, lineJoin: .round))
@@ -143,8 +143,8 @@ struct GraphView: View {
                         var plus = Path()
                         plus.move(to: CGPoint(x: c.x - 4, y: c.y)); plus.addLine(to: CGPoint(x: c.x + 4, y: c.y))
                         plus.move(to: CGPoint(x: c.x, y: c.y - 4)); plus.addLine(to: CGPoint(x: c.x, y: c.y + 4))
-                        ctx.stroke(ring, with: .color(.accentColor.opacity(0.85)), style: StrokeStyle(lineWidth: 1.5, dash: [2, 2]))
-                        ctx.stroke(plus, with: .color(.accentColor.opacity(0.85)), lineWidth: 1.5)
+                        ctx.stroke(ring, with: .color(BandColor.accent.opacity(0.85)), style: StrokeStyle(lineWidth: 1.5, dash: [2, 2]))
+                        ctx.stroke(plus, with: .color(BandColor.accent.opacity(0.85)), lineWidth: 1.5)
                     }
                     #endif
                     // Inspect: a line where the pointer is, and a dot on each side's curve there.
@@ -153,7 +153,7 @@ struct GraphView: View {
                         v.move(to: CGPoint(x: h.x, y: s.rect.minY)); v.addLine(to: CGPoint(x: h.x, y: s.rect.maxY))
                         ctx.stroke(v, with: .color(.primary.opacity(0.5)), lineWidth: 1)
                         let r = response(preset, at: s.freq(h.x), rate: rate)
-                        for (gain, colour) in split ? [(r.left, Color.accentColor), (r.right, BandColor.right)] : [(r.left, Color.accentColor)] {
+                        for (gain, colour) in split ? [(r.left, BandColor.accent), (r.right, BandColor.right)] : [(r.left, BandColor.accent)] {
                             ctx.fill(Path(ellipseIn: CGRect(x: h.x - 4, y: s.y(min(max(gain, -range), range)) - 4, width: 8, height: 8)), with: .color(colour))
                         }
                     }
@@ -168,7 +168,7 @@ struct GraphView: View {
                 }
                 if split {
                     HStack(spacing: 10) {
-                        Label("Left", systemImage: "circle.fill").foregroundStyle(Color.accentColor)
+                        Label("Left", systemImage: "circle.fill").foregroundStyle(BandColor.accent)
                         Label("Right", systemImage: "circle.fill").foregroundStyle(BandColor.right)
                     }
                     .font(.caption2.weight(.medium))

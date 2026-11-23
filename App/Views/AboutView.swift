@@ -32,8 +32,36 @@ struct SettingsView: View {
                     Text("Away from the Q2's Wi-Fi, add its Tailscale address: Tailscale on the Q2 shows it under Settings → Apps Shared Now.")
                 }
             }
-            Section("Appearance") {
+            Section {
                 ThemePicker()
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("Accent")
+                        Spacer()
+                        Text(studio.accentChoice.title).foregroundStyle(.secondary)
+                    }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 34), spacing: 10)], spacing: 10) {
+                        ForEach(AccentChoice.allCases) { choice in
+                            let on = studio.accentChoice == choice
+                            Button { withAnimation(.snappy) { studio.accentChoice = choice } } label: {
+                                Circle()
+                                    .fill(choice.color.gradient)
+                                    .frame(width: 30, height: 30)
+                                    .overlay { if on { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
+                                    .padding(3)
+                                    .overlay { Circle().strokeBorder(on ? choice.color : .clear, lineWidth: 2) }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(choice.title)
+                            .accessibilityAddTraits(on ? .isSelected : [])
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Appearance")
+            } footer: {
+                Text("The accent colours the app's buttons and highlights. The graph keeps EQ Studio's own colours.")
             }
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)

@@ -6,6 +6,7 @@
 import EQCore
 import Foundation
 import Observation
+import SwiftUI
 
 @MainActor @Observable
 final class Studio {
@@ -63,6 +64,12 @@ final class Studio {
     var searchAsked: UUID? // / asked for the presets' search
     var cellFocus: CellFocus? // the band table's cell Return moved to
     var zoom: Double? // the wheel's dB range on a Mac; nil: the graph's own
+
+    /// The app's accent, kept between launches; the graph keeps EQ Studio's own colours whatever it is.
+    var accentChoice = AccentChoice(rawValue: UserDefaults.standard.string(forKey: "eq.accent") ?? "") ?? .studio {
+        didSet { UserDefaults.standard.set(accentChoice.rawValue, forKey: "eq.accent") }
+    }
+    var accent: Color { accentChoice.color }
 
     private static let storeKey = "eq-studio"
 

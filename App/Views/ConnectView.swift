@@ -18,7 +18,7 @@ struct ConnectView: View {
                 Spacer(minLength: 36)
                 ZStack {
                     Circle()
-                        .fill(Color.accentColor.opacity(0.35))
+                        .fill(studio.accent.opacity(0.35))
                         .frame(width: 170, height: 170)
                         .blur(radius: 40)
                     Image("StudioIcon")
@@ -140,6 +140,7 @@ private struct Backdrop: View {
 }
 
 private struct Step: View {
+    @Environment(Studio.self) private var studio
     let icon: String
     let text: LocalizedStringKey
     var body: some View {
@@ -148,7 +149,7 @@ private struct Step: View {
                 .font(.body.weight(.semibold))
                 .foregroundStyle(.white)
                 .frame(width: 34, height: 34)
-                .background(Color.accentColor.gradient, in: .rect(cornerRadius: 10))
+                .background(studio.accent.gradient, in: .rect(cornerRadius: 10))
             Text(text).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -172,7 +173,7 @@ struct SignInForm: View {
                 VStack(spacing: 26) {
                     VStack(spacing: 8) {
                         Image("StudioIcon").resizable().frame(width: 64, height: 64)
-                            .shadow(color: .accentColor.opacity(0.4), radius: 12, y: 6)
+                            .shadow(color: studio.accent.opacity(0.4), radius: 12, y: 6)
                         Text("Sign In").font(.system(.title, design: .rounded, weight: .bold))
                         Text("Both are under the QR code on the Q2's screen.")
                             .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
@@ -290,6 +291,7 @@ struct SignInForm: View {
 
 /// The PIN as six boxes, as a verification code is entered: the next one to fill ringed.
 private struct PinBoxes: View {
+    @Environment(Studio.self) private var studio
     @Binding var pin: String
     let focused: Bool
     let tap: () -> Void
@@ -305,7 +307,7 @@ private struct PinBoxes: View {
                     .background(.fill.tertiary, in: .rect(cornerRadius: 12))
                     .overlay {
                         RoundedRectangle(cornerRadius: 12)
-                            .strokeBorder(next ? Color.accentColor : .clear, lineWidth: 2)
+                            .strokeBorder(next ? studio.accent : .clear, lineWidth: 2)
                     }
                     .animation(.snappy(duration: 0.15), value: pin)
             }
@@ -459,6 +461,7 @@ private struct ScanView: View {
 /// The dimmed camera with a rounded window, its corners bracketed: white while looking, a line sweeping
 /// across; green with a check once signed in; red, shaken, for the wrong code.
 private struct Viewfinder: View {
+    @Environment(Studio.self) private var studio
     enum State { case looking, busy, done, wrong }
     let size: CGFloat
     let state: State
@@ -487,9 +490,9 @@ private struct Viewfinder: View {
                         let t = context.date.timeIntervalSinceReferenceDate
                         let y = rect.minY + 24 + (rect.height - 48) * (0.5 + 0.5 * sin(t * 1.6))
                         Capsule()
-                            .fill(LinearGradient(colors: [.clear, Color.accentColor, .clear], startPoint: .leading, endPoint: .trailing))
+                            .fill(LinearGradient(colors: [.clear, studio.accent, .clear], startPoint: .leading, endPoint: .trailing))
                             .frame(width: rect.width - 40, height: 3)
-                            .shadow(color: .accentColor, radius: 6)
+                            .shadow(color: studio.accent, radius: 6)
                             .position(x: rect.midX, y: y)
                     }
                 }

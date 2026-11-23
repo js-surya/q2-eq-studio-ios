@@ -51,6 +51,7 @@ struct EQStudioApp: App {
         Settings {
             NavigationStack { SettingsView() }
                 .environment(studio)
+                .tint(studio.accent)
                 .frame(minWidth: 480, minHeight: 560)
         }
         #endif
@@ -172,6 +173,7 @@ struct RootView: View {
             Text(studio.notice?.text ?? "")
         }
         .preferredColorScheme(theme == "light" ? .light : theme == "dark" ? .dark : nil)
+        .tint(studio.accent)
         .sensoryFeedback(trigger: studio.haptic) { _, event in event?.kind.feedback }
     }
 }
