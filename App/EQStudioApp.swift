@@ -88,14 +88,15 @@ struct RootView: View {
                     SwiftUI.Tab("EQ", systemImage: "slider.vertical.3", value: Tab.eq) {
                         NavigationStack { EQView() }
                     }
-                    SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.search) {
-                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
-                    }
                     SwiftUI.Tab("Response", systemImage: "waveform.path.ecg", value: Tab.response) {
                         NavigationStack { ResponseView(goToEQ: { tab = .eq }) }
                     }
                     SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
                         NavigationStack { CardView() }
+                    }
+                    // Presets in the bar's own slot at the right, which stays there as the bar collapses.
+                    SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.search, role: .search) {
+                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
                     }
 
                 }
