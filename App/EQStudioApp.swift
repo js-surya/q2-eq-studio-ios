@@ -36,10 +36,10 @@ struct EQStudioApp: App {
                 Button("Open File…") { studio.cardAsked = "open" }.keyboardShortcut("o")
             }
             CommandGroup(before: .sidebar) {
-                ForEach(Array(["EQ", "Search", "Response", "Card"].enumerated()), id: \.offset) { i, name in
+                ForEach(Array(["EQ", "Presets", "Response", "Card"].enumerated()), id: \.offset) { i, name in
                     Button(name) { studio.tabAsked = i }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
                 }
-                Button("Search") { studio.tabAsked = 4 }.keyboardShortcut("f")
+                Button("Search Presets") { studio.tabAsked = 4; studio.searchAsked = UUID() }.keyboardShortcut("f")
                 Divider()
             }
             CommandGroup(replacing: .help) {
@@ -88,15 +88,16 @@ struct RootView: View {
                     SwiftUI.Tab("EQ", systemImage: "slider.vertical.3", value: Tab.eq) {
                         NavigationStack { EQView() }
                     }
+                    SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.search) {
+                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
+                    }
                     SwiftUI.Tab("Response", systemImage: "waveform.path.ecg", value: Tab.response) {
                         NavigationStack { ResponseView(goToEQ: { tab = .eq }) }
                     }
                     SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
                         NavigationStack { CardView() }
                     }
-                    SwiftUI.Tab(value: Tab.search, role: .search) {
-                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
-                    }
+
                 }
                 .tabViewStyle(.sidebarAdaptable)
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
@@ -132,6 +133,9 @@ struct RootView: View {
                 #endif
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
+                // Presets opens with the cursor in its search box.
+                .onChange(of: tab) { if tab == .search { studio.searchAsked = UUID() } }
+                .onAppear { if tab == .search { studio.searchAsked = UUID() } }
                 .onChange(of: studio.tabAsked) {
                     if let i = studio.tabAsked { tab = [Tab.eq, .search, .response, .card, .search][i]; studio.tabAsked = nil }
                 }

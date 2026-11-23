@@ -102,7 +102,7 @@ struct SearchView: View {
                 }
             }
         }
-        .navigationTitle("Search")
+        .navigationTitle("Presets")
         .searchable(text: $query, prompt: "Headphones and IEMs")
         .searchFocused($searchFocus)
         .onChange(of: studio.searchAsked) { takeSearch() }
