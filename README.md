@@ -109,8 +109,6 @@ Bug reports and ideas are welcome. Please use the [issue forms](../../issues/new
 
 ## Credits
 
-Made with ❤️ by [Surya JS](https://github.com/js-surya).
-
 - **[EQ Studio](https://github.com/DiamondBond/q2-eq-studio)** by [DiamondBond](https://github.com/DiamondBond), GPL-3.0: every feature here, the API it talks to, and the icon, which is EQ Studio's own
 - **[Q2 Pod](https://github.com/DiamondBond/q2-pod)** by DiamondBond and its contributors: the firmware that plays the EQ
 - **Q2 Theme Studio** by [tyleree](https://github.com/tyleree), GPL-3.0: EQ Studio's EQ, whose logic `EQCore` ports
