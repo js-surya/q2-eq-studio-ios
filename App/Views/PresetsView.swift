@@ -8,6 +8,7 @@ struct PresetsView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.horizontalSizeClass) private var width
     @State private var search = ""
+    @FocusState private var searchFocus: Bool
     @State private var scope = Kind.all
     @State private var picked: String?
 
@@ -79,6 +80,8 @@ struct PresetsView: View {
             }
         }
         .navigationTitle("Presets")
+        .searchFocused($searchFocus)
+        .onChange(of: studio.searchAsked) { searchFocus = true }
         .searchable(text: $search, prompt: "Headphones and IEMs")
         .searchScopes($scope) { ForEach(Kind.allCases, id: \.self) { Text($0.rawValue) } }
         .task { if studio.catalogue == nil || studio.catalogueError != nil { await studio.loadCatalogue() } }

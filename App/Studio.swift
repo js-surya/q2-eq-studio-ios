@@ -15,6 +15,44 @@ final class Studio {
     }
     private(set) var client: Q2Client?
 
+    let response = Response()
+
+    // MARK: What the page says: a toast (with Undo after a load), a notice to read
+
+    struct Toast: Equatable {
+        let id = UUID()
+        let text: String
+        let undo: Bool
+    }
+    var toast: Toast?
+    var notice: (title: String, text: String)?
+
+    func say(_ text: String, undo: Bool = false) {
+        let t = Toast(text: text, undo: undo)
+        toast = t
+        Task {
+            try? await Task.sleep(for: .seconds(undo ? 6 : 4))
+            if toast == t { toast = nil }
+        }
+    }
+
+    func tell(_ title: String, _ text: String) { notice = (title, text) }
+
+    // MARK: Output: the rate the curve, the warnings and Auto's figure are worked out at
+
+    static let rates: [Double] = [44100, 48000, 96000, 192000]
+    var rate: Double = UserDefaults.standard.object(forKey: "eq.rate") as? Double ?? 48000 {
+        didSet { UserDefaults.standard.set(rate, forKey: "eq.rate") }
+    }
+    var inspect = false
+    var showKeys = false
+    var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
+    var searchAsked: UUID? // / asked for the presets' search
+    var cellFocus: CellFocus? // the band table's cell Return moved to
+    var zoom: Double? // the wheel's dB range on a Mac; nil: the graph's own
+
+    private static let storeKey = "eq-studio"
+
     init() {
         link = LinkStore.load()
         #if DEBUG
@@ -22,6 +60,14 @@ final class Studio {
         if let s = ProcessInfo.processInfo.environment["EQS_LINK"], let l = Q2Link(scanned: s) { link = l }
         #endif
         client = link.map(Q2Client.init)
+        // The preset as it was left, as the page keeps it: the Q2's replaces it once it answers.
+        if let d = UserDefaults.standard.data(forKey: Studio.storeKey), let kept = try? JSONDecoder().decode(Preset.self, from: d) {
+            preset = normalize(kept)
+        }
+    }
+
+    private func store() {
+        if let d = try? JSONEncoder().encode(preset) { UserDefaults.standard.set(d, forKey: Studio.storeKey) }
     }
 
     func connect(_ link: Q2Link) {
@@ -69,6 +115,7 @@ final class Studio {
         }
         (lastKey, lastAt) = (key, now)
         preset = next
+        store()
         send()
     }
 
@@ -83,6 +130,7 @@ final class Studio {
         future.append(preset)
         preset = last
         lastKey = nil
+        store()
         send()
     }
 
@@ -91,6 +139,7 @@ final class Studio {
         history.append(preset)
         preset = next
         lastKey = nil
+        store()
         send()
     }
 
@@ -110,7 +159,7 @@ final class Studio {
 
     /// The text the Q2 and the card take, as a file the page would save.
     var text: String { serialize(preset) }
-    var warnings: [String] { EQCore.warnings(preset) }
+    var warnings: [String] { EQCore.warnings(preset, rate: rate) }
 
     // MARK: Live EQ
 
@@ -332,8 +381,8 @@ final class Studio {
 
     /// A preset from AutoEq, under its headphone's name.
     func apply(_ entry: Catalogue.Entry) {
-        guard case .success(let p) = parse(entry.text, name: cleanName(entry.name)) else { return }
-        replace(with: normalize(p))
+        guard case .success(let p) = parse(entry.text, name: entry.name) else { return }
+        load(p, notes: nil, how: "from AutoEq")
     }
 
     // MARK: The card's EQ folder
@@ -358,19 +407,55 @@ final class Studio {
     func open(_ file: CardFile) async -> String? {
         guard let client else { return Q2Error.unreachable.localizedDescription }
         do {
-            return open(text: try await client.cardGet(file.file), name: file.name)
+            return open(text: try await client.cardGet(file.file), name: nameOfFile(file.file), from: "from the card")
         } catch {
             return error.localizedDescription
         }
     }
 
-    /// A preset's text, from the card, a file or the clipboard; nil when it opened, else why not.
-    func open(text: String, name: String) -> String? {
-        switch parse(text, name: cleanName(name)) {
-        case .failure(let e): return "That isn't a preset the Q2 can take. \(e.message)."
-        case .success(let p):
-            replace(with: normalize(p))
+    /// A preset's text, from the card, a file, a paste or a drop: Poweramp's JSON or the Q2's text. It
+    /// plays at once, a toast says so with Undo, and a notice says what changed on the way; nil when it
+    /// opened, else why not (also told).
+    @discardableResult
+    func open(text: String, name: String, from: String = "from the file") -> String? {
+        let read: Result<(Preset, [String]?), ParseError>
+        var how = from
+        if Poweramp.isJSON(text) {
+            how = "from Poweramp"
+            read = Poweramp.read(text, name: name).map { ($0.preset, $0.notes) }
+        } else {
+            read = parse(text, name: name).map { ($0, nil) }
+        }
+        switch read {
+        case .failure(let e):
+            let why = e.line > 0 ? "\(e.message). The Q2 would refuse it too." : e.reason
+            tell("This preset couldn't be opened", why)
+            return why
+        case .success(let (p, notes)):
+            load(p, notes: notes, how: how)
             return nil
+        }
+    }
+
+    /// Copy: the EQ as a preset's text. Auto's preamp is the Q2's, worked out as it plays, so the text has
+    /// none: the figure, for the app it goes to.
+    func copyEQ() {
+        Clipboard.copy(text)
+        say(preset.auto ? "The EQ is copied, as text. Its preamp is Auto, so the text has none: set \(Format.dB(autoPreamp(preset))) where you paste it."
+            : "The EQ is copied, as text.")
+    }
+
+    /// A preset in place of this one, as the page loads one: picked band the first, a toast with Undo, and
+    /// its notes and warnings to read.
+    func load(_ p: Preset, notes: [String]?, how: String) {
+        replace(with: normalize(p))
+        selected = nil
+        lastKey = nil
+        let called = preset.name.isEmpty ? "The preset" : "“\(preset.name)”"
+        say(live.on ? "\(called) is playing." : "\(called) is loaded \(how).", undo: canUndo)
+        if let notes {
+            let all = notes + warnings
+            if !all.isEmpty { tell(notes.isEmpty ? "\(called) is open" : "\(called) is open, with changes", all.joined(separator: " ")) }
         }
     }
 

@@ -35,57 +35,116 @@ struct GraphView: View {
         func db(_ y: CGFloat) -> Double { Double((rect.midY - y) / (rect.height / 2)) * range }
     }
 
-    private func rangeFor(_ points: [(left: Double, right: Double)]) -> Double {
+    /// The graph's reach follows the curve and the dots, but stands still through a drag. Under a
+    /// measurement it's ±30 dB, near squig.link's 55 dB window, so an earphone looks as it does there.
+    private func rangeFor(_ points: [(left: Double, right: Double)], measured: Bool) -> Double {
+        if measured { return 30 }
         var most = 0.0
         for p in points { most = max(most, abs(p.left), abs(p.right)) }
         for b in studio.preset.bands where b.on { most = max(most, abs(b.gain)) }
         return min(max(ceil((most + 1) / 6) * 6, 12), 30)
     }
 
+    /// For the picture of the graph: its title, a legend and its own background, nothing to touch.
+    var still = false
+    @State private var hover: CGPoint?
+
     var body: some View {
         let preset = studio.preset
+        let rate = studio.rate
         let freqs = GraphView.freqs
-        let points = responses(preset, at: freqs)
-        let range = frozenRange ?? rangeFor(points)
+        let points = responses(preset, at: freqs, rate: rate)
+        let shown = still ? nil : studio.response.shown
+        let aim = still ? nil : studio.response.shownTarget
+        let measured = shown.map { m in freqs.map { Squig.at(m.points, $0) } }
+        let targetLine = aim.map { t in freqs.map { Squig.at(t, $0) } }
+        let range = frozenRange ?? (still ? nil : studio.zoom) ?? rangeFor(points, measured: shown != nil)
         let split = points.contains { abs($0.left - $0.right) > 0.01 }
+        let faded = !still && studio.live.on && studio.live.mode != "peq" // the Q2 isn't playing it
+        let picked = still ? nil : studio.band(studio.selected)
 
         GeometryReader { geo in
-            let g = GraphView.gap
+            let g = still ? EdgeInsets(top: 46, leading: 40, bottom: 30, trailing: 24) : GraphView.gap
             let s = Scale(rect: CGRect(x: g.leading, y: g.top, width: max(geo.size.width - g.leading - g.trailing, 1),
                                        height: max(geo.size.height - g.top - g.bottom, 1)), range: range)
             ZStack {
                 Canvas { ctx, size in
                     drawGrid(ctx, s)
-                    if studio.showEachBand {
-                        for (i, b) in preset.bands.enumerated() where b.on && b.gain != 0 {
-                            var path = Path()
-                            for (k, f) in freqs.enumerated() {
-                                let pt = CGPoint(x: s.x(f), y: s.y(bandResponse(b, at: f)))
-                                k == 0 ? path.move(to: pt) : path.addLine(to: pt)
-                            }
-                            ctx.stroke(path, with: .color(BandColor.of(i).opacity(0.55)), style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
-                        }
-                    }
-                    let curve = { (side: KeyPath<(left: Double, right: Double), Double>) -> Path in
+                    let line = { (values: [Double]) -> Path in
                         var path = Path()
                         for (k, f) in freqs.enumerated() {
-                            let pt = CGPoint(x: s.x(f), y: s.y(min(max(points[k][keyPath: side], -range), range)))
+                            let pt = CGPoint(x: s.x(f), y: s.y(min(max(values[k], -range), range)))
                             k == 0 ? path.move(to: pt) : path.addLine(to: pt)
                         }
                         return path
                     }
-                    let left = curve(\.left)
-                    var fill = left
-                    fill.addLine(to: CGPoint(x: s.rect.maxX, y: s.y(0)))
-                    fill.addLine(to: CGPoint(x: s.rect.minX, y: s.y(0)))
-                    fill.closeSubpath()
-                    ctx.fill(fill, with: .linearGradient(Gradient(colors: [Color.accentColor.opacity(0.28), Color.accentColor.opacity(0.04)]),
-                                                         startPoint: CGPoint(x: 0, y: s.rect.minY), endPoint: CGPoint(x: 0, y: s.y(0))))
-                    if split {
-                        ctx.stroke(curve(\.right), with: .color(.pink), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                    // The measurement as measured, faint, and its target dashed.
+                    if let measured {
+                        ctx.stroke(line(measured), with: .color(.secondary.opacity(0.45)), style: StrokeStyle(lineWidth: 1.5, lineJoin: .round))
+                        if let targetLine {
+                            ctx.stroke(line(targetLine), with: .color(.secondary.opacity(0.8)), style: StrokeStyle(lineWidth: 2, lineJoin: .round, dash: [7, 5]))
+                        }
                     }
-                    ctx.stroke(left, with: .color(.accentColor), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    var eqCtx = ctx
+                    if faded { eqCtx.opacity = 0.4 }
+                    if studio.showEachBand {
+                        for (i, b) in preset.bands.enumerated() where b.on && b.gain != 0 && i != picked {
+                            eqCtx.stroke(line(freqs.map { bandResponse(b, at: $0, rate: rate) }), with: .color(BandColor.of(i).opacity(0.55)),
+                                         style: StrokeStyle(lineWidth: 1.25, dash: [3, 3]))
+                        }
+                    }
+                    // The picked band's own curve, dashed over a faint fill.
+                    if let picked, preset.bands[picked].on, preset.bands[picked].gain != 0 {
+                        let own = line(freqs.map { bandResponse(preset.bands[picked], at: $0, rate: rate) })
+                        var fill = own
+                        fill.addLine(to: CGPoint(x: s.rect.maxX, y: s.y(0)))
+                        fill.addLine(to: CGPoint(x: s.rect.minX, y: s.y(0)))
+                        fill.closeSubpath()
+                        eqCtx.fill(fill, with: .color(BandColor.of(picked).opacity(0.18)))
+                        eqCtx.stroke(own, with: .color(BandColor.of(picked).opacity(0.7)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                    }
+                    let left = line(points.map(\.left))
+                    if !split {
+                        var fill = left
+                        fill.addLine(to: CGPoint(x: s.rect.maxX, y: s.y(0)))
+                        fill.addLine(to: CGPoint(x: s.rect.minX, y: s.y(0)))
+                        fill.closeSubpath()
+                        eqCtx.fill(fill, with: .linearGradient(Gradient(colors: [Color.accentColor.opacity(measured == nil ? 0.28 : 0.12), Color.accentColor.opacity(0.03)]),
+                                                               startPoint: CGPoint(x: 0, y: s.rect.minY), endPoint: CGPoint(x: 0, y: s.y(0))))
+                    } else {
+                        eqCtx.stroke(line(points.map(\.right)), with: .color(.pink), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+                    }
+                    eqCtx.stroke(left, with: .color(.accentColor), style: StrokeStyle(lineWidth: measured == nil ? 2.5 : 2, lineCap: .round, lineJoin: .round))
+                    // The measurement with the EQ, bold: what you'd hear.
+                    if let measured {
+                        eqCtx.stroke(line(zip(measured, points).map { $0 + $1.left }), with: .color(.primary), style: StrokeStyle(lineWidth: 2.5, lineJoin: .round))
+                        if split {
+                            eqCtx.stroke(line(zip(measured, points).map { $0 + $1.right }), with: .color(.primary), style: StrokeStyle(lineWidth: 2.5, lineJoin: .round, dash: [6, 4]))
+                        }
+                    }
+                    if let picked, dragging != nil || pinchQ != nil {
+                        let b = preset.bands[picked]
+                        let c = CGPoint(x: s.x(b.freq), y: s.y(min(max(b.gain, -range), range)))
+                        var cross = Path()
+                        cross.move(to: CGPoint(x: c.x, y: s.rect.minY)); cross.addLine(to: CGPoint(x: c.x, y: s.rect.maxY))
+                        cross.move(to: CGPoint(x: s.rect.minX, y: c.y)); cross.addLine(to: CGPoint(x: s.rect.maxX, y: c.y))
+                        ctx.stroke(cross, with: .color(BandColor.of(picked).opacity(0.35)), lineWidth: 1)
+                        ctx.fill(Path(ellipseIn: CGRect(x: c.x - 26, y: c.y - 26, width: 52, height: 52)), with: .color(BandColor.of(picked).opacity(0.18)))
+                    }
                     drawDots(ctx, s, preset)
+                    // Inspect: a line where the pointer is, and the gain there.
+                    if studio.inspect, let h = hover, s.rect.contains(h) {
+                        var v = Path()
+                        v.move(to: CGPoint(x: h.x, y: s.rect.minY)); v.addLine(to: CGPoint(x: h.x, y: s.rect.maxY))
+                        ctx.stroke(v, with: .color(.primary.opacity(0.5)), lineWidth: 1)
+                    }
+                    if still {
+                        ctx.draw(Text(preset.name.isEmpty ? "EQ" : preset.name).font(.system(size: 17, weight: .semibold)),
+                                 at: CGPoint(x: s.rect.minX, y: 22), anchor: .leading)
+                        let note = preset.auto ? "Preamp Auto (\(Format.dB(autoPreamp(preset, rate: rate))))" : "Preamp \(Format.dB(preset.preamp))"
+                        ctx.draw(Text("\(note) · EQ Studio").font(.system(size: 11)).foregroundStyle(.secondary),
+                                 at: CGPoint(x: s.rect.maxX, y: 22), anchor: .trailing)
+                    }
                 }
                 if split {
                     HStack(spacing: 10) {
@@ -96,12 +155,33 @@ struct GraphView: View {
                     .labelStyle(.titleAndIcon)
                     .imageScale(.small)
                     .padding(.horizontal, 8).padding(.vertical, 4)
-                    .glassEffect(.regular, in: .capsule)
+                    .background(.thinMaterial, in: .capsule)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    .padding(.top, 14).padding(.trailing, 14)
+                    .padding(.top, still ? 48 : 14).padding(.trailing, 28)
                     .allowsHitTesting(false)
                 }
+                if studio.inspect, let h = hover, s.rect.contains(h), !still {
+                    let f = s.freq(h.x)
+                    let r = response(preset, at: f, rate: rate)
+                    let m = shown.map { Squig.at($0.points, f) }
+                    let text = "\(Format.hertz(f))   \(split ? "L \(Format.dB(r.left)) · R \(Format.dB(r.right))" : Format.dB(r.left))"
+                        + (m.map { "   Measured + EQ \(Format.dB($0 + r.left))" } ?? "")
+                    Text(text)
+                        .font(.caption.monospacedDigit())
+                        .padding(.horizontal, 8).padding(.vertical, 4)
+                        .background(.regularMaterial, in: .capsule)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .padding(.top, 12)
+                        .allowsHitTesting(false)
+                }
             }
+            .background { if still { Color(white: 0.98) } }
+            .onContinuousHover { phase in
+                if case .active(let p) = phase { hover = p } else { hover = nil }
+            }
+            #if os(macOS)
+            .background { ScrollWheel(frame: geo.frame(in: .global)) { delta, at, fine in wheel(delta, at, fine, s) } }
+            #endif
             .overlay {
                 // The curve itself can be taken: a band of touch along the line (36 pt) pulls the band
                 // that shapes it most there. Off the line the page scrolls.
@@ -131,6 +211,19 @@ struct GraphView: View {
                     }
                 }
             }
+            #if os(macOS)
+            .overlay {
+                // On a computer, a press on the 0 dB line adds a band there, and the drag that follows moves it.
+                if interactive {
+                    Color.clear
+                        .frame(width: s.rect.width, height: 18)
+                        .contentShape(Rectangle())
+                        .position(x: s.rect.midX, y: s.y(0))
+                        .gesture(zeroLineDrag(s))
+                        .zIndex(-1)
+                }
+            }
+            #endif
             .coordinateSpace(.named("graph"))
             .contentShape(Rectangle())
             .simultaneousGesture(interactive ? pinchGesture : nil)
@@ -167,7 +260,7 @@ struct GraphView: View {
             let label = db == 0 ? "0" : (db > 0 ? "+\(Int(db))" : "−\(Int(-db))")
             ctx.draw(Text(label).font(.system(size: 9, weight: .medium).monospacedDigit()).foregroundStyle(.secondary),
                      at: CGPoint(x: s.rect.minX - 6, y: s.y(db)), anchor: .trailing)
-            db += 6
+            db += s.range <= 6 ? 2 : 6
         }
     }
 
@@ -266,6 +359,48 @@ struct GraphView: View {
             }
     }
 
+    #if os(macOS)
+    /// The wheel, as the page has it: on a dot its band's Q (Shift finer), elsewhere the dB scale's zoom.
+    private func wheel(_ delta: CGFloat, _ at: CGPoint, _ fine: Bool, _ s: Scale) {
+        if let id = nearest(at, s), let i = studio.band(id), Knob.of(studio.preset.bands[i]) == nil {
+            studio.selected = id
+            let q = min(max(studio.preset.bands[i].q * exp(Double(-delta) * 0.0008 * 8 * (fine ? 0.2 : 1)), EQ.qMin), EQ.qMax)
+            studio.change("q-\(id)") { p in
+                if let k = p.bands.firstIndex(where: { $0.id == id }) { p.bands[k].q = (q * 100).rounded() / 100 }
+            }
+        } else {
+            let zooms: [Double] = [6, 12, 18, 24, 30]
+            let now = studio.zoom ?? s.range
+            let k = zooms.firstIndex { $0 >= now } ?? zooms.count - 1
+            studio.zoom = zooms[min(max(k + (delta > 0 ? -1 : 1), 0), zooms.count - 1)]
+        }
+    }
+
+    private func zeroLineDrag(_ s: Scale) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .named("graph"))
+            .onChanged { v in
+                if dragging == nil {
+                    guard studio.preset.bands.count < EQ.maxBands else { return }
+                    studio.addBand(freq: s.freq(v.startLocation.x).rounded(), gain: 0)
+                    dragging = studio.selected
+                    frozenRange = s.range
+                }
+                guard let id = dragging else { return }
+                let freq = min(max(s.freq(v.location.x), EQ.freqMin), EQ.freqMax)
+                let gain = min(max(s.db(v.location.y), -EQ.gainMax), EQ.gainMax)
+                studio.change("drag-\(id)") { p in
+                    guard let k = p.bands.firstIndex(where: { $0.id == id }) else { return }
+                    p.bands[k].freq = (freq * 100).rounded() / 100
+                    p.bands[k].gain = (gain * 10).rounded() / 10
+                }
+            }
+            .onEnded { _ in
+                dragging = nil
+                frozenRange = nil
+            }
+    }
+    #endif
+
     private var pinchGesture: some Gesture {
         MagnifyGesture()
             .onChanged { v in
@@ -298,3 +433,35 @@ private struct CurveBand: Shape {
         return line.strokedPath(StrokeStyle(lineWidth: 36, lineCap: .round, lineJoin: .round))
     }
 }
+
+#if os(macOS)
+import AppKit
+
+/// The Mac's scroll wheel over the graph (SwiftUI has none): a local monitor that takes the wheel's
+/// events while the pointer is in frame, given in the graph's coordinates.
+private struct ScrollWheel: NSViewRepresentable {
+    let frame: CGRect
+    let wheel: (CGFloat, CGPoint, Bool) -> Void
+
+    final class Box: NSView {
+        var frameInWindow = CGRect.zero
+        var wheel: ((CGFloat, CGPoint, Bool) -> Void)?
+        var monitor: Any?
+        override func viewDidMoveToWindow() {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+            monitor = window == nil ? nil : NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] e in
+                guard let self, let win = self.window, e.window === win else { return e }
+                let local = self.convert(e.locationInWindow, from: nil)
+                guard self.bounds.contains(local) else { return e }
+                let at = CGPoint(x: local.x, y: self.isFlipped ? local.y : self.bounds.height - local.y)
+                let d = e.scrollingDeltaY * (e.hasPreciseScrollingDeltas ? 1 : 10)
+                if d != 0 { self.wheel?(d, at, e.modifierFlags.contains(.shift)) }
+                return nil
+            }
+        }
+    }
+
+    func makeNSView(context: Context) -> Box { Box() }
+    func updateNSView(_ v: Box, context: Context) { v.wheel = wheel }
+}
+#endif

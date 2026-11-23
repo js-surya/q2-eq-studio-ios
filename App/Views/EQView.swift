@@ -17,13 +17,25 @@ struct EQView: View {
                     .frame(height: width == .regular ? 320 : 250)
                     .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
                     .selectionDisabled()
+                if studio.response.shown != nil {
+                    ShownBar().selectionDisabled()
+                }
             } footer: {
-                Text("Drag a dot to move its band. Pinch to change the picked band's width. Double-tap to add a band.")
+                #if os(macOS)
+                Text("Drag a dot or the curve to move a band. Press on the 0 dB line to add one. The wheel on a dot changes its Q; elsewhere it zooms. Press ? for every key.")
+                #else
+                Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band.")
+                #endif
             }
 
             Section {
+                if width == .regular {
+                    BandTableHeader().selectionDisabled()
+                }
                 ForEach(Array(studio.preset.bands.enumerated()), id: \.element.id) { index, band in
-                    BandRow(index: index, band: band)
+                    Group {
+                        if width == .regular { BandTableRow(index: index, band: band) } else { BandRow(index: index, band: band) }
+                    }
                         .tag(band.id)
                         .swipeActions(edge: .leading) {
                             Button(band.on ? "Off" : "On", systemImage: band.on ? "speaker.slash" : "speaker.wave.2") {
@@ -136,7 +148,7 @@ private struct PreampSection: View {
         Section {
             Toggle("Auto Preamp", isOn: Binding(get: { p.auto }, set: { v in studio.change { $0.auto = v } }))
             if p.auto {
-                LabeledContent("At 48 kHz", value: Format.dB(autoPreamp(p)))
+                LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(autoPreamp(p, rate: studio.rate)))
                     .foregroundStyle(.secondary)
             } else {
                 ValueSlider(title: "Preamp", value: p.preamp, range: -24...12, step: 0.1, format: { Format.dB($0) }) { v in
@@ -145,8 +157,11 @@ private struct PreampSection: View {
             }
             ValueSlider(title: "Balance", value: p.balance, range: -EQ.balanceMax...EQ.balanceMax, step: 0.1,
                         format: balanceText) { v in studio.change("balance") { $0.balance = v } }
+            Picker("Draw the curve at", selection: Binding(get: { studio.rate }, set: { studio.rate = $0 })) {
+                ForEach(Studio.rates, id: \.self) { r in Text(r == 44100 ? "44.1 kHz" : "\(Int(r / 1000)) kHz").tag(r) }
+            }
         } header: {
-            Text("Preamp and Balance")
+            Text("Output")
         } footer: {
             Text(p.auto ? "Auto works the preamp out on the Q2 for each song's rate, so loud music never clips." : "")
         }
@@ -219,13 +234,15 @@ private struct EQToolbar: ToolbarContent {
                     studio.change { p in for k in p.bands.indices { p.bands[k].on = !anyOn } }
                 }
                 Divider()
-                Button("Copy as Text", systemImage: "doc.on.doc") { Clipboard.copy(studio.text) }
-                    .keyboardShortcut("c", modifiers: [.command, .shift])
+                Button("Copy", systemImage: "doc.on.doc") { studio.copyEQ() }
                 Button("Paste Preset", systemImage: "doc.on.clipboard") {
-                    if let t = Clipboard.text() { studio.open(text: t, name: studio.preset.name).map { pasteError = $0 } }
+                    if let t = Clipboard.text() { studio.open(text: String(t.prefix(Poweramp.fileMax)), name: "", from: "from the clipboard") }
                 }
+                Toggle("Inspect", systemImage: "scope", isOn: $studio.inspect)
+                ThemePicker().pickerStyle(.menu)
+                Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
                 Divider()
-                Button("Reset to Flat", systemImage: "arrow.counterclockwise", role: .destructive) {
+                Button("Start Over with 10 Flat Bands", systemImage: "arrow.counterclockwise", role: .destructive) {
                     studio.replace(with: .flat(name: studio.preset.name))
                 }
             }
@@ -241,5 +258,127 @@ private struct EQToolbar: ToolbarContent {
                 .keyboardShortcut("e", modifiers: .command)
             }
         }
+    }
+}
+
+// MARK: The bands as a table, as the page's computer layout has them
+
+private enum Column { static let num: CGFloat = 30, on: CGFloat = 44, type: CGFloat = 130, side: CGFloat = 120, value: CGFloat = 92 }
+
+private struct BandTableHeader: View {
+    var body: some View {
+        HStack(spacing: 10) {
+            Text("#").frame(width: Column.num)
+            Text("On").frame(width: Column.on)
+            Text("Type").frame(width: Column.type, alignment: .leading)
+            Text("Side").frame(width: Column.side, alignment: .leading)
+            Text("Hz").frame(width: Column.value, alignment: .trailing)
+            Text("dB").frame(width: Column.value, alignment: .trailing)
+            Text("Q").frame(width: Column.value, alignment: .trailing)
+            Spacer(minLength: 0)
+        }
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(.secondary)
+    }
+}
+
+/// A band's row: each value typed in place (1.2k is 1200), stepped with ↑ and ↓ (Shift finer), Return
+/// going down a row.
+private struct BandTableRow: View {
+    @Environment(Studio.self) private var studio
+    let index: Int
+    let band: Band
+
+    var body: some View {
+        let knob = Knob.of(band)
+        HStack(spacing: 10) {
+            Text("\(index + 1)")
+                .font(.footnote.weight(.bold).monospacedDigit())
+                .foregroundStyle(.white)
+                .frame(width: 24, height: 24)
+                .background(band.on ? BandColor.of(index) : Color.secondary.opacity(0.5), in: .circle)
+                .frame(width: Column.num)
+            Toggle("On", isOn: field(\.on, "on")).labelsHidden().frame(width: Column.on)
+            Picker("Type", selection: field(\.type, "type")) {
+                ForEach(FilterType.allCases, id: \.self) { Text(Format.typeName($0)) }
+            }
+            .labelsHidden().frame(width: Column.type).disabled(knob != nil)
+            Picker("Side", selection: field(\.channel, "channel")) {
+                ForEach(Channel.allCases, id: \.self) { Text(Format.channelName($0)) }
+            }
+            .labelsHidden().frame(width: Column.side).disabled(knob != nil)
+            Cell(value: band.freq, digits: 2, range: EQ.freqMin...EQ.freqMax, step: { v, up, fine in v * pow(2, (up ? 1 : -1) * (fine ? 1.0 / 48 : 1.0 / 12)) },
+                 set: { v in set("freq") { $0.freq = (v * 100).rounded() / 100 } }, row: index, column: 0)
+                .disabled(knob != nil)
+            Cell(value: band.gain, digits: 1, range: (knob != nil ? 0 : -EQ.gainMax)...(knob != nil ? Knob.maxGain : EQ.gainMax),
+                 step: { v, up, fine in v + (up ? 1 : -1) * (fine ? 0.1 : 0.5) },
+                 set: { v in set("gain") { $0.gain = (v * 100).rounded() / 100 } }, row: index, column: 1)
+            Cell(value: band.q, digits: 2, range: EQ.qMin...EQ.qMax, step: { v, up, fine in v * pow(2, (up ? 1 : -1) / (fine ? 24 : 6)) },
+                 set: { v in set("q") { $0.q = (v * 1000).rounded() / 1000 } }, row: index, column: 2)
+                .disabled(knob != nil)
+            if let knob { Text(knob.title).font(.caption.weight(.semibold)).foregroundStyle(.tint) }
+            Spacer(minLength: 0)
+        }
+        .opacity(band.on ? 1 : 0.6)
+    }
+
+    private func set(_ name: String, _ edit: @escaping (inout Band) -> Void) {
+        let id = band.id
+        studio.change("\(name)-\(id)") { p in if let k = p.bands.firstIndex(where: { $0.id == id }) { edit(&p.bands[k]) } }
+    }
+
+    private func field<T>(_ key: WritableKeyPath<Band, T>, _ name: String) -> Binding<T> {
+        Binding(get: { band[keyPath: key] }, set: { v in set(name) { $0[keyPath: key] = v } })
+    }
+}
+
+/// Which cell has the keyboard: a row and a column.
+struct CellFocus: Hashable { let row, column: Int }
+
+private struct Cell: View {
+    @Environment(Studio.self) private var studio
+    let value: Double
+    let digits: Int
+    let range: ClosedRange<Double>
+    let step: (Double, Bool, Bool) -> Double
+    let set: (Double) -> Void
+    let row, column: Int
+    @State private var text = ""
+    @FocusState private var focus: CellFocus?
+
+    var body: some View {
+        TextField("", text: $text)
+            .multilineTextAlignment(.trailing)
+            .monospacedDigit()
+            .textFieldStyle(.roundedBorder)
+            .frame(width: Column.value)
+            .focused($focus, equals: CellFocus(row: row, column: column))
+            .onAppear { text = shown }
+            .onChange(of: value) { if focus == nil { text = shown } }
+            .onSubmit {
+                commit()
+                // Return goes down a row, in the same column.
+                if row + 1 < studio.preset.bands.count { studio.cellFocus = CellFocus(row: row + 1, column: column) }
+            }
+            .onChange(of: studio.cellFocus) { if studio.cellFocus == CellFocus(row: row, column: column) { focus = studio.cellFocus } }
+            .onChange(of: focus) { if focus == nil { commit() } }
+            .onKeyPress(keys: [.upArrow, .downArrow]) { press in
+                let v = min(max(step(value, press.key == .upArrow, press.modifiers.contains(.shift)), range.lowerBound), range.upperBound)
+                set(v)
+                text = decimal(v, digits)
+                return .handled
+            }
+    }
+
+    private var shown: String { decimal(value, digits) }
+
+    private func commit() {
+        var t = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: ",", with: ".")
+        var scale = 1.0
+        if t.hasSuffix("k") { scale = 1000; t.removeLast() }
+        guard let v = Double(t) else { text = shown; return }
+        let clamped = min(max(v * scale, range.lowerBound), range.upperBound)
+        if clamped != value { set(clamped) }
+        text = decimal(clamped, digits)
     }
 }
