@@ -183,7 +183,9 @@ struct CardView: View {
     private func save(replace: Bool) {
         Task {
             switch await studio.save(as: name, replace: replace) {
-            case .saved: message = "Saved to the card's EQ folder."
+            case .saved:
+                studio.buzz(.success)
+                message = "Saved to the card's EQ folder."
             case .taken: taken = fileName(name)
             case .failed(let why): message = why
             }

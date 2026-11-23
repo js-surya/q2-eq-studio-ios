@@ -36,7 +36,17 @@ final class Studio {
         }
     }
 
-    func tell(_ title: String, _ text: String) { notice = (title, text) }
+    /// A notice to read; an error buzzes as one, a note on what opened doesn't.
+    func tell(_ title: String, _ text: String, error: Bool = true) {
+        notice = (title, text)
+        if error { buzz(.failure) }
+    }
+
+    // MARK: Haptics: one event at a time, played by the root view
+
+    var haptic: HapticEvent?
+
+    func buzz(_ kind: Haptic) { haptic = HapticEvent(kind: kind) }
 
     // MARK: Output: the rate the curve, the warnings and Auto's figure are worked out at
 
@@ -79,6 +89,7 @@ final class Studio {
     }
 
     func connect(_ link: Q2Link) {
+        buzz(.success)
         LinkStore.save(link)
         self.link = link
         live = LiveState()
@@ -147,6 +158,7 @@ final class Studio {
 
     func undo() {
         guard let last = history.popLast() else { return }
+        buzz(.light)
         future.append(preset)
         preset = last
         lastKey = nil
@@ -156,6 +168,7 @@ final class Studio {
 
     func redo() {
         guard let next = future.popLast() else { return }
+        buzz(.light)
         history.append(preset)
         preset = next
         lastKey = nil
@@ -166,13 +179,15 @@ final class Studio {
     func band(_ id: Band.ID?) -> Int? { id.flatMap { id in preset.bands.firstIndex { $0.id == id } } }
 
     func addBand(freq: Double = 1000, gain: Double = 0) {
-        guard preset.bands.count < EQ.maxBands else { return }
+        guard preset.bands.count < EQ.maxBands else { buzz(.limit); return }
+        buzz(.add)
         let b = Band(freq: freq, gain: gain)
         change { $0.bands.append(b) }
         selected = b.id
     }
 
     func deleteBand(_ id: Band.ID) {
+        buzz(.remove)
         change { $0.bands.removeAll { $0.id == id } }
         if selected == id { selected = nil }
     }
@@ -222,6 +237,7 @@ final class Studio {
     /// The EQ off or on on the Q2, after any preset still waiting.
     func setMode(_ on: Bool) {
         guard live.on else { return }
+        buzz(.light)
         live.mode = on ? "peq" : "off"
         queue.removeAll { if case .mode = $0 { true } else { false } }
         queue.append(.mode(on))
@@ -274,6 +290,7 @@ final class Studio {
     }
 
     private func setError(_ text: String, retry: (@MainActor () -> Void)?) {
+        if live.error != text { buzz(.failure) }
         live.error = text
         live.retry = retry
     }
@@ -459,6 +476,7 @@ final class Studio {
     /// Copy: the EQ as a preset's text. Auto's preamp is the Q2's, worked out as it plays, so the text has
     /// none: the figure, for the app it goes to.
     func copyEQ() {
+        buzz(.success)
         Clipboard.copy(text)
         say(preset.auto ? "The EQ is copied, as text. Its preamp is Auto, so the text has none: set \(Format.dB(autoPreamp(preset))) where you paste it."
             : "The EQ is copied, as text.")
@@ -467,6 +485,7 @@ final class Studio {
     /// A preset in place of this one, as the page loads one: picked band the first, a toast with Undo, and
     /// its notes and warnings to read.
     func load(_ p: Preset, notes: [String]?, how: String) {
+        buzz(.success)
         replace(with: normalize(p))
         selected = nil
         lastKey = nil
@@ -474,7 +493,7 @@ final class Studio {
         say(live.on ? "\(called) is playing." : "\(called) is loaded \(how).", undo: canUndo)
         if let notes {
             let all = notes + warnings
-            if !all.isEmpty { tell(notes.isEmpty ? "\(called) is open" : "\(called) is open, with changes", all.joined(separator: " ")) }
+            if !all.isEmpty { tell(notes.isEmpty ? "\(called) is open" : "\(called) is open, with changes", all.joined(separator: " "), error: false) }
         }
     }
 

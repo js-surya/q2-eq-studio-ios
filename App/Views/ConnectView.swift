@@ -123,6 +123,7 @@ struct SignInForm: View {
                 }
             }
             .formStyle(.grouped)
+            .sensoryFeedback(.error, trigger: error) { _, new in new != nil }
             .navigationTitle("Sign In")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {

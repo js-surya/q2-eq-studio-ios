@@ -216,6 +216,10 @@ struct ValueSlider: View {
                                   set: { set(($0 / step).rounded() * step) }), in: range)
         }
         .accessibilityElement(children: .combine)
+        // A tick each whole dB, a bump at the centre (0).
+        .sensoryFeedback(trigger: Int(value.rounded(.towardZero))) { old, new in
+            new == 0 && old != 0 ? .impact(weight: .medium, intensity: 0.8) : .selection
+        }
     }
 }
 

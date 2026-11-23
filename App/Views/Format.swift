@@ -64,3 +64,31 @@ enum Device {
         #endif
     }
 }
+
+/// The app's haptics, as Apple's patterns name them.
+enum Haptic {
+    case tick // a step: a whole dB, a grid frequency, a width step
+    case bump // a landmark: 0 dB, a slider's centre
+    case limit // as far as it goes
+    case light // a pick, a toggle, undo
+    case add, remove
+    case success, failure
+
+    var feedback: SensoryFeedback {
+        switch self {
+        case .tick: .selection
+        case .bump: .impact(weight: .medium, intensity: 0.8)
+        case .limit: .impact(flexibility: .rigid, intensity: 1)
+        case .light: .impact(weight: .light, intensity: 0.7)
+        case .add: .impact(weight: .medium)
+        case .remove: .impact(weight: .heavy, intensity: 0.8)
+        case .success: .success
+        case .failure: .error
+        }
+    }
+}
+
+struct HapticEvent: Equatable {
+    let id = UUID()
+    let kind: Haptic
+}

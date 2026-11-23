@@ -110,6 +110,7 @@ struct ResponseView: View {
             do {
                 guard try await r.show(base: site.base, file: phone.file, name: phone.name, by: site.name, kind: site.kind) else { return }
                 if width != .regular { goToEQ() }
+                studio.buzz(.success)
                 studio.say("\(phone.name) is on the graph, under your EQ.")
             } catch {
                 studio.tell("\(phone.name) couldn't be loaded", error.localizedDescription)

@@ -147,6 +147,7 @@ struct RootView: View {
             Text(studio.notice?.text ?? "")
         }
         .preferredColorScheme(theme == "light" ? .light : theme == "dark" ? .dark : nil)
+        .sensoryFeedback(trigger: studio.haptic) { _, event in event?.kind.feedback }
     }
 }
 

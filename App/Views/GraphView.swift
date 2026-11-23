@@ -246,7 +246,7 @@ struct GraphView: View {
             .contentShape(Rectangle())
             .simultaneousGesture(interactive ? pinchGesture : nil)
             .simultaneousGesture(interactive ? doubleTap(s) : nil)
-            .sensoryFeedback(.selection, trigger: studio.selected)
+            .sensoryFeedback(trigger: studio.selected) { _, new in new == nil ? nil : .impact(weight: .light, intensity: 0.6) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("EQ curve")
             .accessibilityValue(accessibilitySummary(preset))
@@ -343,6 +343,7 @@ struct GraphView: View {
                     guard let id = bandAt(s.freq(v.startLocation.x)), let i = studio.band(id) else { return }
                     let b = studio.preset.bands[i]
                     pull = Pull(id: id, freq: b.freq, gain: b.gain)
+                    studio.buzz(.light)
                     dragging = id
                     studio.selected = id
                     frozenRange = s.range
@@ -353,17 +354,35 @@ struct GraphView: View {
                 let ratio = s.freq(v.location.x) / s.freq(v.startLocation.x)
                 let gain = min(max(p.gain + dGain, knob ? 0 : -EQ.gainMax), knob ? Knob.maxGain : EQ.gainMax)
                 let freq = min(max(p.freq * ratio, EQ.freqMin), EQ.freqMax)
+                let before = studio.preset.bands[i]
                 studio.change("drag-\(p.id)") { preset in
                     guard let k = preset.bands.firstIndex(where: { $0.id == p.id }) else { return }
                     if !knob { preset.bands[k].freq = (freq * 100).rounded() / 100 }
                     preset.bands[k].gain = (gain * 10).rounded() / 10
                 }
+                if let j = studio.band(p.id) { detents(before, studio.preset.bands[j], knob: knob) }
             }
             .onEnded { _ in
                 pull = nil
                 dragging = nil
                 frozenRange = nil
             }
+    }
+
+
+    /// The detents a move passes: a tick each whole dB and each grid frequency, a bump at 0 dB, a buzz at
+    /// the ends. old and new are the band before and after.
+    private func detents(_ old: Band, _ new: Band, knob: Bool) {
+        let top = knob ? Knob.maxGain : EQ.gainMax, bottom = knob ? 0 : -EQ.gainMax
+        if (new.gain >= top && old.gain < top) || (new.gain <= bottom && old.gain > bottom)
+            || (new.freq >= EQ.freqMax && old.freq < EQ.freqMax) || (new.freq <= EQ.freqMin && old.freq > EQ.freqMin) {
+            studio.buzz(.limit)
+        } else if (old.gain < 0) != (new.gain < 0) || (old.gain != 0 && new.gain == 0) {
+            studio.buzz(.bump)
+        } else if Int(old.gain.rounded(.towardZero)) != Int(new.gain.rounded(.towardZero))
+                    || GraphView.freqLines.contains(where: { ($0 > old.freq) != ($0 > new.freq) }) {
+            studio.buzz(.tick)
+        }
     }
 
     /// A dot's own drag: its band follows the finger, the dB range held still until it lets go.
@@ -379,11 +398,13 @@ struct GraphView: View {
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let freq = min(max(s.freq(v.location.x), EQ.freqMin), EQ.freqMax)
                 let gain = min(max(s.db(v.location.y), -EQ.gainMax), EQ.gainMax)
+                let before = studio.preset.bands[i]
                 studio.change("drag-\(id)") { p in
                     guard let k = p.bands.firstIndex(where: { $0.id == id }) else { return }
                     if !knob { p.bands[k].freq = (freq * 100).rounded() / 100 }
                     p.bands[k].gain = knob ? min(max((gain * 10).rounded() / 10, 0), Knob.maxGain) : (gain * 10).rounded() / 10
                 }
+                if let j = studio.band(id) { detents(before, studio.preset.bands[j], knob: knob) }
             }
             .onEnded { _ in
                 dragging = nil
@@ -441,6 +462,9 @@ struct GraphView: View {
                 if pinchQ == nil { pinchQ = studio.preset.bands[i].q }
                 // Spread the fingers for a wider band (a lower Q), as a pinch zooms out.
                 let q = min(max(pinchQ! / Double(v.magnification), EQ.qMin), EQ.qMax)
+                let was = studio.preset.bands[i].q
+                if (q >= EQ.qMax && was < EQ.qMax) || (q <= EQ.qMin && was > EQ.qMin) { studio.buzz(.limit) }
+                else if Int(log2(q) * 4) != Int(log2(was) * 4) { studio.buzz(.tick) }
                 studio.change("q-\(id)") { p in
                     if let k = p.bands.firstIndex(where: { $0.id == id }) { p.bands[k].q = (q * 100).rounded() / 100 }
                 }
