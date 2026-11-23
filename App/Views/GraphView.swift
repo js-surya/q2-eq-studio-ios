@@ -300,7 +300,7 @@ struct GraphView: View {
                 ctx.fill(Path(ellipseIn: rect.insetBy(dx: -6, dy: -6)), with: .color(colour.opacity(0.22)))
             }
             if picked {
-                ctx.fill(Path(ellipseIn: rect), with: .color(colour))
+                ctx.fill(Path(ellipseIn: rect), with: .color(BandColor.picked(b)))
                 ctx.stroke(Path(ellipseIn: rect), with: .color(dotBackground), lineWidth: 2)
                 ctx.draw(Text("\(i + 1)").font(.system(size: 12, weight: .bold).monospacedDigit()).foregroundStyle(.white), at: c)
             } else {

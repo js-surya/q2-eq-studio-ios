@@ -47,11 +47,14 @@ enum Format {
     }
 }
 
-/// A band's colour, as the page has it: the accent, orange for the right side alone, faint when off.
+/// A band's colour, as the page has it (web/style.css, light and dark): the accent, orange for the right
+/// side alone, faint when off; the picked dot filled with the accent's fill.
 enum BandColor {
-    static let right = Color.orange
-    static let faint = Color.secondary.opacity(0.5)
+    static let right = Color("RightSide")
+    static let faint = Color("Faint")
+    static let fill = Color("AccentFill")
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : .accentColor }
+    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : fill }
 }
 
 /// What this device is: keys and a pointer are a Mac's and an iPad's, not a phone's.
