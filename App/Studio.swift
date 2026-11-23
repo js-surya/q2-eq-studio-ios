@@ -58,6 +58,13 @@ final class Studio {
         #if DEBUG
         // For the simulator, which has no camera: EQS_LINK=<the QR code's link> signs in at launch.
         if let s = ProcessInfo.processInfo.environment["EQS_LINK"], let l = Q2Link(scanned: s) { link = l }
+        // And EQS_ADDR with EQS_PIN signs in with the PIN, as the form does.
+        let env = ProcessInfo.processInfo.environment
+        if let a = env["EQS_ADDR"], let pin = env["EQS_PIN"], let base = Q2Link.base(typed: a) {
+            Task { @MainActor in
+                if let l = try? await Q2Client.signIn(base: base, pin: pin) { self.connect(l) }
+            }
+        }
         #endif
         client = link.map(Q2Client.init)
         // The preset as it was left, as the page keeps it: the Q2's replaces it once it answers.

@@ -78,7 +78,8 @@ struct ResponseView: View {
         }
         .navigationTitle("Response")
         .searchFocused($searchFocus)
-        .onChange(of: studio.searchAsked) { searchFocus = true }
+        .onChange(of: studio.searchAsked) { takeSearch() }
+        .onAppear { takeSearch() }
         .searchable(text: $search, prompt: phones.map { "Search \($0.count.formatted()) \(r.kindWord)" } ?? "Search")
         .task { await r.load() }
         .refreshable { await r.load() }
@@ -113,6 +114,16 @@ struct ResponseView: View {
             } catch {
                 studio.tell("\(phone.name) couldn't be loaded", error.localizedDescription)
             }
+        }
+    }
+
+    /// / asked for the search: focused once this tab is on screen, even when / brought it here.
+    private func takeSearch() {
+        guard studio.searchAsked != nil else { return }
+        studio.searchAsked = nil
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150)) // the search field is in place a moment after the tab
+            searchFocus = true
         }
     }
 }

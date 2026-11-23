@@ -119,7 +119,7 @@ struct RootView: View {
                     return handled ? .handled : .ignored
                 }
                 #endif
-                .onChange(of: studio.searchAsked) { if tab != .response { tab = .presets } }
+                .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .presets } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
@@ -282,7 +282,16 @@ private struct KeyMonitor: NSViewRepresentable {
                 case 49: name = " "
                 default: name = (e.charactersIgnoringModifiers ?? "").lowercased()
                 }
-                return self.key?(name, e.modifierFlags.contains(.shift), e.isARepeat) == true ? nil : e
+                let handled = self.key?(name, e.modifierFlags.contains(.shift), e.isARepeat) == true
+                if handled && name == "/" {
+                    // The search box is the toolbar's: the cursor put in it once the tab is there.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        for item in win.toolbar?.items ?? [] {
+                            if let search = item as? NSSearchToolbarItem { win.makeFirstResponder(search.searchField); break }
+                        }
+                    }
+                }
+                return handled ? nil : e
             }
         }
     }

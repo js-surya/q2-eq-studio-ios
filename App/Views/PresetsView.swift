@@ -81,7 +81,8 @@ struct PresetsView: View {
         }
         .navigationTitle("Presets")
         .searchFocused($searchFocus)
-        .onChange(of: studio.searchAsked) { searchFocus = true }
+        .onChange(of: studio.searchAsked) { takeSearch() }
+        .onAppear { takeSearch() }
         .searchable(text: $search, prompt: "Headphones and IEMs")
         .searchScopes($scope) { ForEach(Kind.allCases, id: \.self) { Text($0.rawValue) } }
         .task { if studio.catalogue == nil || studio.catalogueError != nil { await studio.loadCatalogue() } }
@@ -98,5 +99,15 @@ struct PresetsView: View {
     private func pick(_ entry: Catalogue.Entry) {
         studio.apply(entry)
         picked = entry.id
+    }
+
+    /// / asked for the search: focused once this tab is on screen, even when / brought it here.
+    private func takeSearch() {
+        guard studio.searchAsked != nil else { return }
+        studio.searchAsked = nil
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150)) // the search field is in place a moment after the tab
+            searchFocus = true
+        }
     }
 }
