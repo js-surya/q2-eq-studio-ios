@@ -31,9 +31,18 @@ final class Response {
     var loading = false
     var error: SquigError?
     var fetching = ""
-    var target = Squig.targets[0].name { didSet { keep(); Task { await loadTarget() } } }
-    var targets: [String: Curve] = [:]
-    var shown: Shown?
+    var target = Squig.targets[0].name { didSet { lines(); keep(); Task { await loadTarget() } } }
+    var targets: [String: Curve] = [:] { didSet { lines() } }
+    var shown: Shown? { didSet { lines() } }
+
+    /// The measurement and the target at the graph's points, worked out when they change.
+    private(set) var measuredLine: [Double]?
+    private(set) var targetLine: [Double]?
+
+    private func lines() {
+        measuredLine = shown.map { m in Plot.freqs.map { Squig.at(m.points, $0) } }
+        targetLine = shownTarget.map { t in Plot.freqs.map { Squig.at(t, $0) } }
+    }
     var fitting = false
     private var asked = 0
 

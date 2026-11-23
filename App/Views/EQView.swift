@@ -11,15 +11,19 @@ struct EQView: View {
 
     var body: some View {
         @Bindable var studio = studio
+        VStack(spacing: 0) {
+            // The graph pinned above the list: it stays in view while the bands scroll, and a pull on the
+            // list moves the list alone.
+            VStack(spacing: 6) {
+                GraphView()
+                    .frame(height: width == .regular ? 320 : 230)
+                if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
+            }
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
+            .background(Color.groupedBackground)
         List(selection: $studio.selected) {
             Section {
-                GraphView()
-                    .frame(height: width == .regular ? 320 : 250)
-                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                    .selectionDisabled()
-                if studio.response.shown != nil {
-                    ShownBar().selectionDisabled()
-                }
             } footer: {
                 #if os(macOS)
                 Text("Drag a dot or the curve to move a band. Press on the 0 dB line to add one. The wheel on a dot changes its Q; elsewhere it zooms. Press ? for every key.")
@@ -88,6 +92,7 @@ struct EQView: View {
             }
         }
         .groupedList()
+        }
         .navigationTitle(studio.preset.name.isEmpty ? "EQ" : studio.preset.name)
         .toolbar { EQToolbar() }
         .inspector(isPresented: Binding(get: { studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
@@ -148,7 +153,7 @@ private struct PreampSection: View {
         Section {
             Toggle("Auto Preamp", isOn: Binding(get: { p.auto }, set: { v in studio.change { $0.auto = v } }))
             if p.auto {
-                LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(autoPreamp(p, rate: studio.rate)))
+                LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(studio.autoFigure))
                     .foregroundStyle(.secondary)
             } else {
                 ValueSlider(title: "Preamp", value: p.preamp, range: -24...12, step: 0.1, format: { Format.dB($0) }) { v in
@@ -380,5 +385,16 @@ private struct Cell: View {
         let clamped = min(max(v * scale, range.lowerBound), range.upperBound)
         if clamped != value { set(clamped) }
         text = decimal(clamped, digits)
+    }
+}
+
+extension Color {
+    /// The grouped list's own background, so the pinned graph sits on it.
+    static var groupedBackground: Color {
+        #if os(iOS)
+        Color(uiColor: .systemGroupedBackground)
+        #else
+        Color(nsColor: .controlBackgroundColor)
+        #endif
     }
 }

@@ -22,7 +22,7 @@ struct GraphView: View {
     private static let gap = EdgeInsets(top: 10, leading: 34, bottom: 22, trailing: 10)
     private static let freqLines: [Double] = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000]
     private static let reach: CGFloat = 30
-    private static let freqs: [Double] = (0..<240).map { pow(10, logLow + logSpan * Double($0) / 239) }
+    private static var freqs: [Double] { Plot.freqs }
     private static let logLow = log10(EQ.freqMin)
     private static let logSpan = log10(EQ.freqMax) - log10(EQ.freqMin)
 
@@ -53,11 +53,11 @@ struct GraphView: View {
         let preset = studio.preset
         let rate = studio.rate
         let freqs = GraphView.freqs
-        let points = responses(preset, at: freqs, rate: rate)
+        let points = still ? responses(preset, at: freqs, rate: rate) : studio.curve
         let shown = still ? nil : studio.response.shown
         let aim = still ? nil : studio.response.shownTarget
-        let measured = shown.map { m in freqs.map { Squig.at(m.points, $0) } }
-        let targetLine = aim.map { t in freqs.map { Squig.at(t, $0) } }
+        let measured = shown == nil ? nil : studio.response.measuredLine
+        let targetLine = aim == nil ? nil : studio.response.targetLine
         let range = frozenRange ?? (still ? nil : studio.zoom) ?? rangeFor(points, measured: shown != nil)
         let split = points.contains { abs($0.left - $0.right) > 0.01 }
         let faded = !still && studio.live.on && studio.live.mode != "peq" // the Q2 isn't playing it
@@ -186,13 +186,11 @@ struct GraphView: View {
                 // The curve itself can be taken: a band of touch along the line (36 pt) pulls the band
                 // that shapes it most there. Off the line the page scrolls.
                 if interactive {
-                    CurveBand(points: freqs.indices.map { k in
+                    let band = CurveBand(points: stride(from: 0, to: freqs.count, by: 4).map { k in
                         CGPoint(x: s.x(freqs[k]), y: s.y(min(max(points[k].left, -range), range)))
                     })
-                    .fill(Color.clear)
-                    .contentShape(CurveBand(points: freqs.indices.map { k in
-                        CGPoint(x: s.x(freqs[k]), y: s.y(min(max(points[k].left, -range), range)))
-                    }))
+                    Color.clear
+                    .contentShape(band)
                     .gesture(curveDrag(s))
                     .accessibilityHidden(true)
                 }
@@ -465,3 +463,9 @@ private struct ScrollWheel: NSViewRepresentable {
     func updateNSView(_ v: Box, context: Context) { v.wheel = wheel }
 }
 #endif
+
+/// The graph's frequencies, 240 on a log scale: the curve, the measurement and the target are worked
+/// out at these.
+enum Plot {
+    static let freqs: [Double] = (0..<240).map { pow(10, log10(EQ.freqMin) + (log10(EQ.freqMax) - log10(EQ.freqMin)) * Double($0) / 239) }
+}

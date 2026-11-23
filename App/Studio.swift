@@ -42,7 +42,7 @@ final class Studio {
 
     static let rates: [Double] = [44100, 48000, 96000, 192000]
     var rate: Double = UserDefaults.standard.object(forKey: "eq.rate") as? Double ?? 48000 {
-        didSet { UserDefaults.standard.set(rate, forKey: "eq.rate") }
+        didSet { UserDefaults.standard.set(rate, forKey: "eq.rate"); work() }
     }
     var inspect = false
     var showKeys = false
@@ -64,6 +64,7 @@ final class Studio {
         if let d = UserDefaults.standard.data(forKey: Studio.storeKey), let kept = try? JSONDecoder().decode(Preset.self, from: d) {
             preset = normalize(kept)
         }
+        work()
     }
 
     private func store() {
@@ -88,7 +89,19 @@ final class Studio {
 
     // MARK: The preset and its history
 
-    private(set) var preset = Preset.flat()
+    private(set) var preset = Preset.flat() { didSet { if preset != oldValue { work() } } }
+
+    /// Worked out once for each EQ and rate, not on every redraw: the curve at the graph's points, Auto's
+    /// preamp and the warnings.
+    private(set) var curve: [(left: Double, right: Double)] = responses(.flat(), at: Plot.freqs)
+    private(set) var autoFigure = 0.0
+    private(set) var warnings: [String] = EQCore.warnings(.flat())
+
+    private func work() {
+        curve = responses(preset, at: Plot.freqs, rate: rate)
+        autoFigure = autoPreamp(preset, rate: rate)
+        warnings = EQCore.warnings(preset, rate: rate)
+    }
     var selected: Band.ID?
     var showEachBand = false
 
@@ -159,7 +172,6 @@ final class Studio {
 
     /// The text the Q2 and the card take, as a file the page would save.
     var text: String { serialize(preset) }
-    var warnings: [String] { EQCore.warnings(preset, rate: rate) }
 
     // MARK: Live EQ
 
