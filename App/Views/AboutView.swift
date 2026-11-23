@@ -3,11 +3,70 @@
 // contributor to Q2 Pod by their GitHub name, read from GitHub (the list built in when offline).
 import SwiftUI
 
-struct AboutView: View {
+/// Settings: the Q2 this device is signed in to, the look, the graph's extras, the keys, and About.
+struct SettingsView: View {
     @Environment(Studio.self) private var studio
-    @State private var contributors: [Contributor] = Contributor.builtIn
     @State private var confirmDisconnect = false
     @State private var addAddress = false
+    @State private var showAbout = false
+
+    var body: some View {
+        @Bindable var studio = studio
+        Form {
+            if let link = studio.link {
+                Section {
+                    LabeledContent("Address", value: link.address)
+                    if studio.addresses.count > 1 {
+                        LabeledContent("Also Reached At", value: studio.addresses.filter { $0 != link.base }
+                            .map { Q2Link(base: $0, key: "").address }.joined(separator: ", "))
+                    }
+                    LabeledContent("Live EQ", value: studio.live.local ? "Not on this Q2 Pod" : studio.live.on ? "On" : "—")
+                    Button("Add Another Address…", systemImage: "plus") { addAddress = true }
+                    Button("Sign Out", systemImage: "rectangle.portrait.and.arrow.right", role: .destructive) { confirmDisconnect = true }
+                } header: {
+                    Text("Q2")
+                } footer: {
+                    Text("Away from the Q2's Wi-Fi, add its Tailscale address: Tailscale on the Q2 shows it under Settings → Apps Shared Now.")
+                }
+            }
+            Section("Appearance") {
+                ThemePicker()
+            }
+            Section {
+                Toggle("Each Band's Curve", isOn: $studio.showEachBand)
+                Toggle("Inspect", isOn: $studio.inspect)
+            } header: {
+                Text("Graph")
+            } footer: {
+                Text("Inspect shows a line where the pointer is on the graph, and the gain there, on a Mac or an iPad with a pointer.")
+            }
+            Section {
+                Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
+                NavigationLink(value: "about") {
+                    Label("About EQ Studio", systemImage: "info.circle")
+                }
+            }
+        }
+        .formStyle(.grouped)
+        .navigationTitle("Settings")
+        .navigationDestination(for: String.self) { _ in AboutView() }
+        .navigationDestination(isPresented: $showAbout) { AboutView() }
+        #if DEBUG
+        .onAppear { if ProcessInfo.processInfo.environment["EQS_TAB"] == "about" { showAbout = true } }
+        #endif
+        .sheet(isPresented: $addAddress) { SignInForm() }
+        .confirmationDialog("Sign out of this Q2?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
+            Button("Sign Out", role: .destructive) { studio.disconnect() }
+        } message: {
+            Text("To come back, scan the Q2's code again.")
+        }
+    }
+}
+
+/// About: what this is, who made it, whose work it stands on, and every contributor to Q2 Pod by their
+/// GitHub name, read from GitHub (the list built in when offline).
+struct AboutView: View {
+    @State private var contributors: [Contributor] = Contributor.builtIn
 
     private var version: String {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
@@ -34,17 +93,41 @@ struct AboutView: View {
                 .padding(.vertical, 8)
             }
 
-            if let link = studio.link {
-                Section("Q2") {
-                    LabeledContent("Address", value: link.address)
-                    if studio.addresses.count > 1 {
-                        LabeledContent("Also Reached At", value: studio.addresses.filter { $0 != link.base }
-                            .map { Q2Link(base: $0, key: "").address }.joined(separator: ", "))
+            Section("Developer") {
+                Person(login: Contributor.developer, role: "This app: iPhone, iPad and Mac")
+            }
+
+            Section("Built On") {
+                Person(login: "DiamondBond", name: "Bond", role: "EQ Studio and Q2 Pod: every feature here, and the icon")
+                Person(login: "tyleree", name: "Tyler", role: "Q2 Theme Studio: the EQ engine this app runs")
+            }
+
+            Section {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 14) {
+                        ForEach(contributors.filter { !Contributor.named.contains($0.login.lowercased()) }) { c in
+                            Link(destination: c.profile) {
+                                VStack(spacing: 6) {
+                                    Avatar(login: c.login, size: 52)
+                                    Text(c.login)
+                                        .font(.caption)
+                                        .lineLimit(1)
+                                        .frame(maxWidth: 76)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(c.login)
+                        }
                     }
-                    Button("Add Another Address…", systemImage: "plus") { addAddress = true }
-                    LabeledContent("Live EQ", value: studio.live.local ? "Not on this Q2 Pod" : studio.live.on ? "On" : "—")
-                    Button("Sign Out", role: .destructive) { confirmDisconnect = true }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, 2)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+            } header: {
+                Text("Q2 Pod Contributors")
+            } footer: {
+                Text("Everyone else who has contributed to Q2 Pod on GitHub, the firmware EQ Studio runs on. Thank you.")
             }
 
             Section {
@@ -63,39 +146,7 @@ struct AboutView: View {
             } header: {
                 Text("Acknowledgements")
             }
-
-            Section {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 16) {
-                    ForEach(contributors) { c in
-                        Link(destination: c.profile) {
-                            VStack(spacing: 6) {
-                                AsyncImage(url: c.avatar) { image in
-                                    image.resizable().scaledToFill()
-                                } placeholder: {
-                                    Image(systemName: "person.fill").foregroundStyle(.secondary)
-                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                        .background(.quaternary)
-                                }
-                                .frame(width: 48, height: 48)
-                                .clipShape(.circle)
-                                Text(c.login)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.7)
-                                    .foregroundStyle(.primary)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(c.login)
-                    }
-                }
-                .padding(.vertical, 6)
-            } header: {
-                Text("Q2 Pod Contributors")
-            } footer: {
-                Text("Everyone who has contributed to Q2 Pod on GitHub, the firmware EQ Studio runs on. Thank you.")
-            }
+            .tint(.primary)
 
             Section {
                 Link("GNU General Public License v3.0", destination: URL(string: "https://www.gnu.org/licenses/gpl-3.0.html")!)
@@ -108,12 +159,48 @@ struct AboutView: View {
         .formStyle(.grouped)
         .navigationTitle("About")
         .task { if let live = await Contributor.fetch() { contributors = live } }
-        .sheet(isPresented: $addAddress) { SignInForm() }
-        .confirmationDialog("Sign out of this Q2?", isPresented: $confirmDisconnect, titleVisibility: .visible) {
-            Button("Sign Out", role: .destructive) { studio.disconnect() }
-        } message: {
-            Text("To come back, scan the Q2's code again.")
+    }
+}
+
+/// A person, by their GitHub picture and name, and what they did; a tap opens their profile.
+private struct Person: View {
+    let login: String
+    var name: String?
+    let role: String
+
+    var body: some View {
+        Link(destination: URL(string: "https://github.com/\(login)")!) {
+            HStack(spacing: 12) {
+                Avatar(login: login, size: 44)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(name ?? login).font(.body.weight(.semibold)).foregroundStyle(.primary)
+                        if name != nil { Text(login).font(.footnote).foregroundStyle(.secondary) }
+                    }
+                    Text(role).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "arrow.up.right").font(.footnote).foregroundStyle(.tertiary)
+            }
         }
+        .tint(.primary)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct Avatar: View {
+    let login: String
+    let size: CGFloat
+    var body: some View {
+        AsyncImage(url: URL(string: "https://github.com/\(login).png?size=\(Int(size * 3))")) { image in
+            image.resizable().scaledToFill()
+        } placeholder: {
+            Image(systemName: "person.fill").foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(.quaternary)
+        }
+        .frame(width: size, height: size)
+        .clipShape(.circle)
     }
 }
 
@@ -145,6 +232,11 @@ struct Contributor: Identifiable, Decodable, Sendable {
     var id: String { login }
     var profile: URL { URL(string: "https://github.com/\(login)")! }
     var avatar: URL { URL(string: "https://github.com/\(login).png?size=96")! }
+
+    /// This app's developer, on GitHub.
+    static let developer = "js-surya"
+    /// Shown on their own above the rest: the developer, Bond and Tyler.
+    static let named: Set<String> = ["js-surya", "diamondbond", "tyleree"]
 
     /// Q2 Pod's contributors when this was built, most contributions first.
     static let builtIn: [Contributor] = [

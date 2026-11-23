@@ -53,7 +53,7 @@ struct RootView: View {
         case "presets": return .presets
         case "response": return .response
         case "card": return .card
-        case "about": return .about
+        case "settings", "about": return .settings
         default: break
         }
         #endif
@@ -61,7 +61,7 @@ struct RootView: View {
     }()
     @State private var showSignIn = false
 
-    enum Tab: Hashable { case eq, presets, response, card, about }
+    enum Tab: Hashable { case eq, presets, response, card, settings }
     @AppStorage("eq-studio-theme") private var theme = "system"
     @FocusState private var keys: Bool
 
@@ -83,8 +83,8 @@ struct RootView: View {
                     SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
                         NavigationStack { CardView() }
                     }
-                    SwiftUI.Tab("About", systemImage: "info.circle", value: Tab.about) {
-                        NavigationStack { AboutView() }
+                    SwiftUI.Tab("Settings", systemImage: "gearshape", value: Tab.settings) {
+                        NavigationStack { SettingsView() }
                     }
                 }
                 .tabViewStyle(.sidebarAdaptable)
