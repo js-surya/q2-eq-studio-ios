@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest an idea for the app
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The app does what EQ Studio's page does. A new EQ feature belongs in EQ Studio first; ideas about how it looks or feels on an iPhone or iPad belong here.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What would you like to do?
+      description: Describe the problem or the moment where the app could help more.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: How could it work? Mockups and examples are welcome.
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Where?
+      options: [iPhone, iPad, Both]
+      multiple: true

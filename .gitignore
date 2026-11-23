@@ -1,7 +1,10 @@
-*.xcodeproj/
-build/
-.build/
-DerivedData/
-.swiftpm/
-xcuserdata/
 .DS_Store
+xcuserdata/
+DerivedData/
+.build/
+.swiftpm/
+*.xcuserstate
+*.xcodeproj/
+Config/Signing.xcconfig
+build/
+dist/

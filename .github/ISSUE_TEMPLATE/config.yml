@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: EQ Studio problems on the Q2
+    url: https://github.com/DiamondBond/q2-eq-studio/issues
+    about: Problems with EQ Studio itself, on the Q2 or its web page, belong in the EQ Studio repository.
+  - name: Q2 Pod firmware problems
+    url: https://github.com/DiamondBond/q2-pod/issues
+    about: Problems with the firmware belong in the Q2 Pod repository.

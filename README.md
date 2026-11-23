@@ -1,71 +1,127 @@
-# EQ Studio for iPhone and iPad
+<p align="center">
+  <img src="docs/screenshots/icon.png" width="128" height="128" alt="EQ Studio's icon">
+</p>
 
-A native app for [EQ Studio](https://github.com/DiamondBond/q2-eq-studio), the [Q2 Pod](https://github.com/DiamondBond/q2-pod)
-app for editing the Shanling Q2's parametric EQ. It does what EQ Studio's page does, in SwiftUI, and talks to
-the same EQ Studio running on the Q2: what you change plays on the Q2 as you change it.
+<h1 align="center">EQ Studio for iPhone and iPad</h1>
 
-| EQ | Presets | A preset | Response | About |
-|---|---|---|---|---|
-| ![The EQ: a measurement under the curve, the bands below](docs/eq.png) | ![Presets: recent and popular, filtered by kind](docs/presets.png) | ![A preset's curve, read only, before Apply](docs/preset.png) | ![Response: a reviewer, a target and their measurements](docs/response.png) | ![About: the credits and Q2 Pod's contributors](docs/about.png) |
+<p align="center"><strong>Your Q2's EQ, in your hand.</strong></p>
 
-## Using it
+<p align="center">
+  A native iPhone and iPad app for <a href="https://github.com/DiamondBond/q2-eq-studio">EQ Studio</a>, the
+  <a href="https://github.com/DiamondBond/q2-pod">Q2 Pod</a> app that edits the Shanling Q2's parametric EQ.<br>
+  Shape the curve, pick a preset for your headphones, and hear it on the Q2 as you go.
+</p>
 
-1. On the Q2, open **EQ Studio** (Library → Apps). It shows a QR code.
-2. Keep the iPhone or iPad on the same Wi-Fi as the Q2.
-3. Tap **Scan Code** and point the camera at it, or **Type PIN** and enter the address and PIN under the code.
+<p align="center">
+  <img alt="Platforms" src="https://img.shields.io/badge/platforms-iOS%20%7C%20iPadOS-blue">
+  <img alt="Swift" src="https://img.shields.io/badge/Swift-6-orange">
+  <img alt="SwiftUI" src="https://img.shields.io/badge/UI-SwiftUI-informational">
+  <img alt="Data collected" src="https://img.shields.io/badge/data%20collected-none-brightgreen">
+  <a href="LICENSE"><img alt="License: GPL-3.0" src="https://img.shields.io/badge/license-GPL--3.0-lightgrey"></a>
+</p>
 
-Away from the Q2's Wi-Fi, use its Tailscale address instead, with Tailscale on both: the
-[Tailscale app for Q2 Pod](https://github.com/js-surya/q2-tailscale) shows it under **Settings → Apps Shared Now**.
-The app keeps both addresses and uses whichever answers.
+<p align="center">
+  <img src="docs/screenshots/eq.png" width="180" alt="The EQ: a measurement under the curve, the bands below">
+  <img src="docs/screenshots/presets.png" width="180" alt="Presets: recent and popular, filtered by kind">
+  <img src="docs/screenshots/preset.png" width="180" alt="A preset's curve, read only, before Apply">
+  <img src="docs/screenshots/response.png" width="180" alt="Response: a reviewer, a target and their measurements">
+  <img src="docs/screenshots/about.png" width="180" alt="About: the credits and Q2 Pod's contributors">
+</p>
 
-## What's in it
+> This app talks to EQ Studio on the Q2 and does what EQ Studio's page does. Its EQ logic is EQ Studio's,
+> ported to Swift with its tests, with the blessing of EQ Studio's and Q2 Theme Studio's authors. It's not
+> affiliated with Shanling.
 
-Everything on EQ Studio's page, its logic ported from the page's JavaScript along with its tests:
+## Features
 
-- **EQ:** the curve; drag a dot or the curve itself, pinch for a band's width, double-tap to add a band,
-  touch and hold to read the curve. Up to 30 bands (peak, low or high shelf, both sides or one), Auto or
-  fixed preamp, balance, Bass and Treble as Poweramp's knobs, each band's own curve, bypass, undo and redo.
-- **Presets:** AutoEq's presets for thousands of headphones and IEMs, searched by name, filtered by kind;
-  each opens on its own page to look at before **Apply** plays it.
-- **Response:** a reviewer's measurement from [squig.link](https://squig.link) under the EQ (Measured, a target,
-  Measured + EQ), and **AutoEQ** to fit the bands to the target.
-- **Card:** the card's EQ folder (open, save, replace, delete), open a file, paste a preset's text or a
-  Poweramp export, and **For other apps**: Wavelet, miniDSP biquads, impulse responses (.wav), a picture.
-- **Live:** EQ on or off on the Q2, what it plays, and what went wrong with a retry.
-- **The rest:** the curve's rate (44.1 to 192 kHz), light, dark or the system's, an accent of your choice,
-  haptics, a keyboard's shortcuts on an iPad, and About with the credits and every Q2 Pod contributor.
+**Shape**
+- The curve: drag a dot or the curve itself, pinch for a band's width, double-tap to add a band, touch and hold to read it
+- Up to 30 bands (peak, low or high shelf, on both sides or one), Auto or fixed preamp, balance
+- Bass and Treble as Poweramp's knobs, each band's own curve, bypass, undo and redo
+- Haptics at each dB, at 0 dB and at the limits
 
-It needs iOS or iPadOS 26, and EQ Studio on a Q2 Pod with live EQ to play changes as you make them (without
-it, it's an editor: save to the card and import on the Q2).
+**Find**
+- AutoEq's presets for thousands of headphones and IEMs, searched by name and filtered by kind
+- Each preset on its own page, its curve over yours, before **Apply** plays it
+- **Response:** a reviewer's measurement from [squig.link](https://squig.link) under your EQ, a target, and **AutoEQ** to fit the bands to it
 
-## Building
+**Keep and share**
+- The card's EQ folder: open, save, replace, delete
+- Open a file, paste a preset's text or a Poweramp export
+- For other apps: Wavelet, miniDSP biquads, impulse responses (.wav), a picture of the graph
 
-Needs Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen).
+**Yours**
+- Hear it live, EQ on or off on the Q2, and what went wrong with a retry
+- Sign in by scanning the Q2's code or with its PIN; on your Wi-Fi or over [Tailscale](https://github.com/js-surya/q2-tailscale), whichever answers
+- Light or dark, an accent of your choice, keyboard shortcuts on an iPad
+- About credits everyone, with every Q2 Pod contributor
+
+## Download
+
+Coming to TestFlight, then the App Store. Until then, build it yourself (below); [Releases](../../releases) list what
+changed in each version.
+
+## Requirements
+
+- A Shanling Q2 with [Q2 Pod](https://github.com/DiamondBond/q2-pod) and [EQ Studio](https://github.com/DiamondBond/q2-eq-studio) (from its App Store); a Q2 Pod with live EQ plays changes as you make them
+- iOS / iPadOS 26 or later
+
+## Build
+
+You need Xcode 27 or later and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
 
 ```sh
-xcodegen generate                    # EQStudio.xcodeproj, from project.yml
-open EQStudio.xcodeproj              # pick your team under Signing, then run on an iPhone or iPad
-cd Packages/EQCore && swift test     # the EQ logic and its tests
+git clone https://github.com/js-surya/q2-eq-studio-apple.git
+cd q2-eq-studio-apple
+cp Config/Signing.xcconfig.example Config/Signing.xcconfig   # put your Apple Team ID in it
+xcodegen generate
+open EQStudio.xcodeproj
 ```
 
-`Packages/EQCore` is EQ Studio's logic in Swift: `web/eq.js` (a preset's text, the Q2's limits, the curve),
-`formats.js`, `poweramp.js`, `squig.js` and `fit.js`, each with its tests case for case. The tests also read
-back every AutoEq preset (`Tests/EQCoreTests/presets.json.gz`, AutoEq's, MIT).
+No Q2 at hand? EQ Studio runs on a computer too (its README, Building): start the app in the simulator with
+`EQS_LINK=<the link EQ Studio prints>` and it signs in.
 
-A debug build takes a few launch settings for the simulator, which has no camera: `EQS_LINK=<the QR code's
-link>` signs in, `EQS_TAB=presets|response|card` opens a tab. [EQ Studio](https://github.com/DiamondBond/q2-eq-studio)
-also runs on a computer (its README, Building), so the app can be tried without a Q2.
+Run the tests and the build before a pull request:
+
+```sh
+scripts/test.sh
+```
+
+## Project layout
+
+| Path | What's there |
+|---|---|
+| `Packages/EQCore` | The EQ logic, as a Swift package: EQ Studio's `web/eq.js` (a preset's text, the Q2's limits, the curve), `formats.js`, `poweramp.js`, `squig.js` and `fit.js`, each with its tests, which also read back every AutoEq preset |
+| `App/` | The app: talking to EQ Studio, the EQ, Presets, Response, Card and Settings |
+| `Config/` | Build settings; your signing team goes in `Signing.xcconfig` (gitignored) |
+| `docs/` | Screenshots and the [privacy policy](docs/PRIVACY.md) |
+
+## Privacy
+
+The app collects no data: no analytics, tracking or ads, and no server of its own. It talks to EQ Studio on your
+Q2, reads measurements from squig.link when you pick one, and reads Q2 Pod's contributor list from GitHub for
+About. Details are in the [privacy policy](docs/PRIVACY.md).
+
+## Contributing
+
+Bug reports and ideas are welcome. Please use the [issue forms](../../issues/new/choose), and see
+[CONTRIBUTING.md](.github/CONTRIBUTING.md) before opening a pull request.
 
 ## Credits
 
-- **[EQ Studio](https://github.com/DiamondBond/q2-eq-studio)** by [DiamondBond](https://github.com/DiamondBond), GPL-3.0:
-  every feature here, the API it talks to, and the icon, which is EQ Studio's own.
-- **[Q2 Pod](https://github.com/DiamondBond/q2-pod)** by DiamondBond and its contributors: the firmware that plays the EQ.
-- **Q2 Theme Studio** by [tyleree](https://github.com/tyleree), GPL-3.0: EQ Studio's EQ, whose logic `EQCore` ports.
-- **[AutoEq](https://github.com/jaakkopasanen/AutoEq)** by Jaakko Pasanen, MIT: the presets.
-- **[squig.link](https://squig.link)** and its reviewers: the measurements and targets.
-- **PEQdB Studio** and **[File Browser](https://github.com/group-a-study/q2-filebrowser)**, as EQ Studio credits them.
+Made with ❤️ by [Surya JS](https://github.com/js-surya).
+
+- **[EQ Studio](https://github.com/DiamondBond/q2-eq-studio)** by [DiamondBond](https://github.com/DiamondBond), GPL-3.0: every feature here, the API it talks to, and the icon, which is EQ Studio's own
+- **[Q2 Pod](https://github.com/DiamondBond/q2-pod)** by DiamondBond and its contributors: the firmware that plays the EQ
+- **Q2 Theme Studio** by [tyleree](https://github.com/tyleree), GPL-3.0: EQ Studio's EQ, whose logic `EQCore` ports
+- **[AutoEq](https://github.com/jaakkopasanen/AutoEq)** by Jaakko Pasanen, MIT: the presets ([licence](Packages/EQCore/Tests/EQCoreTests/AUTOEQ-LICENSE.txt))
+- **[squig.link](https://squig.link)** and its reviewers: the measurements and targets
+- **PEQdB Studio** and **[File Browser](https://github.com/group-a-study/q2-filebrowser)**, as EQ Studio credits them
 
 ## Licence
 
-GPL-3.0-only (`LICENSE`), as EQ Studio is. Not affiliated with Shanling or Apple.
+GPL-3.0-only ([LICENSE](LICENSE)), as EQ Studio is. Its authors allow it to be distributed through TestFlight and the
+App Store. The icon is EQ Studio's: if you publish your own build, please use a different name and icon.
+
+Report security problems privately; see [SECURITY.md](.github/SECURITY.md). Everyone taking part follows the
+[code of conduct](.github/CODE_OF_CONDUCT.md).

@@ -1,0 +1,67 @@
+name: Release
+
+# Features are merged into `develop`, tested and built on a Mac first (scripts/test.sh); GitHub doesn't
+# build the app (its runners lag behind new Xcode releases). A release is one pull request from
+# `develop` into `main`: merging it (a regular merge, not squash) publishes a release if the version
+# and build in project.yml are new: the source code and notes listing every change since the previous
+# release. The apps themselves are distributed only through TestFlight and the App Store, so the
+# release has no app files. Change the version with scripts/set-version.sh X.Y.Z [BUILD].
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'docs/**', '.github/ISSUE_TEMPLATE/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Version
+        id: version
+        run: |
+          version=$(scripts/version.sh)
+          build=$(scripts/version.sh --build)
+          # A release is a version and build, "EQ Studio 1.3.0 (7)". The first release of a version is
+          # tagged vX.Y.Z; later builds of the same version (TestFlight keeps the version) vX.Y.Z-BUILD.
+          if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
+            tag="v$version-$build"
+          else
+            tag="v$version"
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "build=$build" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "new=false" >> "$GITHUB_OUTPUT"
+            echo "$version ($build) is already released."
+          else
+            echo "new=true" >> "$GITHUB_OUTPUT"
+            echo "$version ($build) is not released yet: $tag."
+          fi
+
+      - name: Publish the release
+        if: steps.version.outputs.new == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUILD: ${{ steps.version.outputs.build }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          # Install steps, then New / Fixes / Improvements from the commit log since the previous release.
+          scripts/release-notes.sh > notes.md
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "EQ Studio $VERSION ($BUILD)" \
+            --notes-file notes.md
