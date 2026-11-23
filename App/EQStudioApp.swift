@@ -35,6 +35,12 @@ struct EQStudioApp: App {
             CommandGroup(replacing: .newItem) {
                 Button("Open File…") { studio.cardAsked = "open" }.keyboardShortcut("o")
             }
+            CommandGroup(before: .sidebar) {
+                ForEach(Array(["EQ", "Presets", "Response", "Card", "Settings"].enumerated()), id: \.offset) { i, name in
+                    Button(name) { studio.tabAsked = i }.keyboardShortcut(KeyEquivalent(Character("\(i + 1)")))
+                }
+                Divider()
+            }
             CommandGroup(replacing: .help) {
                 Button("Keyboard and Mouse") { studio.showKeys = true }.keyboardShortcut("/", modifiers: [.command, .shift])
             }
@@ -121,6 +127,9 @@ struct RootView: View {
                 #endif
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .presets } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
+                .onChange(of: studio.tabAsked) {
+                    if let i = studio.tabAsked { tab = [Tab.eq, .presets, .response, .card, .settings][i]; studio.tabAsked = nil }
+                }
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
                 .sheet(isPresented: $showSignIn) { SignInForm() }

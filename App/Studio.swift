@@ -56,6 +56,7 @@ final class Studio {
     }
     var inspect = false
     var showKeys = false
+    var tabAsked: Int? // ⌘1 to ⌘5 on a Mac: EQ, Presets, Response, Card, Settings
     var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
     var searchAsked: UUID? // / asked for the presets' search
     var cellFocus: CellFocus? // the band table's cell Return moved to
