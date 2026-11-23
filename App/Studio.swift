@@ -69,7 +69,7 @@ final class Studio {
     var accentChoice = AccentChoice(rawValue: UserDefaults.standard.string(forKey: "eq.accent") ?? "") ?? .studio {
         didSet {
             UserDefaults.standard.set(accentChoice.rawValue, forKey: "eq.accent")
-            BandColor.studioChosen = accentChoice == .studio
+            BandColor.choice = accentChoice
         }
     }
     var accent: Color { accentChoice.color }
@@ -95,7 +95,7 @@ final class Studio {
             preset = normalize(kept)
         }
         work()
-        BandColor.studioChosen = accentChoice == .studio
+        BandColor.choice = accentChoice
     }
 
     private func store() {

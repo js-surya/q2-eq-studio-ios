@@ -55,13 +55,14 @@ enum BandColor {
     static let accent = Color.accentColor
     /// EQ Studio's own blue, by name, whatever accent is chosen.
     static let studio = Color("AccentColor")
-    /// Whether EQ Studio's accent is the chosen one: then the picked dot takes the page's own fill.
-    nonisolated(unsafe) static var studioChosen = true
-    static let right = Color("RightSide")
-    static let faint = Color("Faint")
+    /// The chosen accent, set by Studio: EQ Studio's gives the picked dot the page's own fill, Orange's
+    /// clashes with the right side's orange (blue then), Graphite's with off bands' grey (fainter then).
+    nonisolated(unsafe) static var choice = AccentChoice.studio
+    static var right: Color { choice == .orange ? studio : Color("RightSide") }
+    static var faint: Color { choice == .graphite ? Color("Faint").opacity(0.45) : Color("Faint") }
     static let fill = Color("AccentFill")
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : accent }
-    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : studioChosen ? fill : accent }
+    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : choice == .studio ? fill : accent }
 }
 
 /// What this device is: keys and a pointer are a Mac's and an iPad's, not a phone's.
