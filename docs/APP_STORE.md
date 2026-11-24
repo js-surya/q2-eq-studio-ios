@@ -33,8 +33,9 @@ used with permission. Not affiliated with Shanling: say so in the description an
 2. Create the app in App Store Connect → Apps → + → New App: iOS, the name above, bundle ID
    `me.suryajs.eqstudio`, SKU `eqstudio`.
 3. Set the version and build with `scripts/set-version.sh X.Y.Z BUILD` (each upload needs a new build number).
-4. `scripts/archive.sh --upload` archives and sends it to App Store Connect; without `--upload` it exports the
-   .ipa to `dist/`.
+4. Archive (`scripts/archive.sh`, or Product → Archive), then upload from Xcode's Organizer: Window → Organizer
+   → the archive → Distribute App → App Store Connect → Upload. Organizer signs with your Xcode account;
+   `scripts/archive.sh --upload` needs an App Store Connect user that can sign in the cloud.
 5. In TestFlight: internal testers (people on the team) get it as soon as it's processed; external testers and
    a public link need Beta App Review first (the notes above).
 6. Screenshots (for the App Store, later): iPhone 6.9" and iPad 13". In Debug, `EQS_LINK=<link>` signs in to
