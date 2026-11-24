@@ -37,7 +37,6 @@ struct RootView: View {
     enum Tab: Hashable { case eq, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
     @FocusState private var keys: Bool
-    @FocusState private var presetSearch: Bool
 
     var body: some View {
         Group {
@@ -61,11 +60,6 @@ struct RootView: View {
 
                 }
                 .tabViewStyle(.sidebarAdaptable)
-                // Presets' search in the tab bar, as Apple's apps have it: picking the tab opens the field
-                // above the keyboard.
-                .searchable(text: Binding(get: { studio.presetQuery }, set: { studio.presetQuery = $0 }), prompt: "Headphones and IEMs")
-                .searchFocused($presetSearch)
-                .tabViewSearchActivation(.searchTabSelection)
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
@@ -91,13 +85,11 @@ struct RootView: View {
                     }
                     return handled ? .handled : .ignored
                 }
-                .onChange(of: studio.searchAsked) {
-                    guard studio.searchAsked != nil, tab != .response else { return }
-                    studio.searchAsked = nil
-                    tab = .search
-                    presetSearch = true
-                }
+                .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
+                // Presets opens with the cursor in its search box.
+                .onChange(of: tab) { if tab == .search { studio.searchAsked = UUID() } }
+                .onAppear { if tab == .search { studio.searchAsked = UUID() } }
                 #if DEBUG
                 .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
                 .task { if ProcessInfo.processInfo.environment["EQS_TOAST"] != nil { try? await Task.sleep(for: .seconds(2)); studio.say("“Meze Alba” is playing.", undo: true) } }
