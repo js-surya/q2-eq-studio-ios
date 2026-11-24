@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// The picked band under the graph, where there's room (an iPad, either way up): its controls next to the
-// curve they move, the graph and the bands keeping the full width. An iPhone keeps the sheet (BandEditor).
+// The picked band under the graph, on an iPhone as on an iPad, either way up: its controls next to the curve
+// they move, nothing covering the bands. An iPad's is wide (segmented type and side, the values side by side);
+// an iPhone's compact (menus, the values one under another).
 import EQCore
 import SwiftUI
 
@@ -20,12 +21,70 @@ struct BandStrip: View {
 
 private struct Card: View {
     @Environment(Studio.self) private var studio
+    @Environment(\.horizontalSizeClass) private var width
     let index: Int
     let band: Band
 
     var body: some View {
+        if width == .compact { compact } else { wide }
+    }
+
+    /// An iPhone's: the name and its actions, type and side as menus, then frequency, gain and Q each a row.
+    /// A pull down on its top line closes it, as ✕ does.
+    private var compact: some View {
         let knob = Knob.of(band)
-        VStack(alignment: .leading, spacing: 14) {
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                title(knob)
+                Spacer(minLength: 4)
+                actions
+            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 20).onEnded { if $0.translation.height > 40 { studio.selected = nil } })
+            HStack(spacing: 8) {
+                Picker("Type", selection: field(\.type, "type")) {
+                    ForEach(FilterType.allCases, id: \.self) { Text(Format.typeName($0)) }
+                }
+                .disabled(knob != nil)
+                Picker("Side", selection: field(\.channel, "channel")) {
+                    ForEach(Channel.allCases, id: \.self) { Text(Format.channelName($0)) }
+                }
+                .disabled(knob != nil)
+                Spacer(minLength: 0)
+            }
+            .pickerStyle(.menu)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            VStack(spacing: 6) { rows(knob) }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 12)
+        .background(Color.rowBackground, in: .rect(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .strokeBorder(BandColor.of(band).opacity(0.35), lineWidth: 1)
+        }
+        .opacity(band.on ? 1 : 0.75)
+    }
+
+    @ViewBuilder private func rows(_ knob: Knob?) -> some View {
+        Param(title: "Frequency", value: band.freq, range: EQ.freqMin...EQ.freqMax, log: true, digits: 0, unit: "Hz", row: true) { v in
+            set("freq") { $0.freq = (v * 100).rounded() / 100 }
+        }
+        .disabled(knob != nil)
+        Param(title: "Gain", value: band.gain,
+              range: (knob != nil ? 0 : -EQ.gainMax)...(knob != nil ? Knob.maxGain : EQ.gainMax),
+              log: false, digits: 1, unit: "dB", step: 0.1, row: true) { v in
+            set("gain") { $0.gain = (v * 100).rounded() / 100 }
+        }
+        Param(title: "Q", value: band.q, range: EQ.qMin...EQ.qMax, log: true, digits: 2, unit: "", row: true) { v in
+            set("q") { $0.q = (v * 1000).rounded() / 1000 }
+        }
+        .disabled(knob != nil)
+    }
+
+    private var wide: some View {
+        let knob = Knob.of(band)
+        return VStack(alignment: .leading, spacing: 14) {
             // One line where it fits; the type and side under the name where it doesn't (Split View).
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 14) {
@@ -155,16 +214,28 @@ private struct Param: View {
     let digits: Int
     let unit: String
     var step: Double = 0
+    var row = false // an iPhone's: the name, the slider and the number on one line
     let set: (Double) -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 8) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                Spacer(minLength: 4)
-                TypedNumber(value: value, range: range, digits: digits, unit: unit, set: set)
+        Group {
+            if row {
+                HStack(spacing: 10) {
+                    Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        .frame(width: 76, alignment: .leading)
+                    Slider(value: slider, in: log ? log10(range.lowerBound)...log10(range.upperBound) : range)
+                    TypedNumber(value: value, range: range, digits: digits, unit: unit, width: 58, set: set)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 8) {
+                        Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                        Spacer(minLength: 4)
+                        TypedNumber(value: value, range: range, digits: digits, unit: unit, set: set)
+                    }
+                    Slider(value: slider, in: log ? log10(range.lowerBound)...log10(range.upperBound) : range)
+                }
             }
-            Slider(value: slider, in: log ? log10(range.lowerBound)...log10(range.upperBound) : range)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(title)
@@ -180,5 +251,43 @@ private struct Param: View {
         }
         return Binding(get: { min(max(value, range.lowerBound), range.upperBound) },
                        set: { set(step > 0 ? ($0 / step).rounded() * step : $0) })
+    }
+}
+
+/// Typed in place: 1.2k is 1200, as EQ Studio's table reads it.
+struct TypedNumber: View {
+    let value: Double
+    let range: ClosedRange<Double>
+    let digits: Int
+    let unit: String
+    var width: CGFloat = 80
+    let set: (Double) -> Void
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack(spacing: 4) {
+            TextField("", text: $text)
+                .multilineTextAlignment(.trailing)
+                .monospacedDigit()
+                .frame(width: width)
+                .focused($focused)
+                .keyboardType(.decimalPad)
+                .onSubmit(commit)
+                .onChange(of: focused) { if !focused { commit() } }
+            if !unit.isEmpty { Text(unit).foregroundStyle(.secondary) }
+        }
+        .onAppear { text = shown }
+        .onChange(of: value) { if !focused { text = shown } }
+    }
+
+    private var shown: String { decimal(value, digits) }
+
+    private func commit() {
+        var t = text.trimmingCharacters(in: .whitespaces).lowercased().replacingOccurrences(of: ",", with: ".")
+        var scale = 1.0
+        if t.hasSuffix("k") { scale = 1000; t.removeLast() }
+        guard let v = Double(t) else { text = shown; return }
+        set(min(max(v * scale, range.lowerBound), range.upperBound))
     }
 }

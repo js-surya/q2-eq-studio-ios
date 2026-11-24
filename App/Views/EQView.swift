@@ -13,7 +13,7 @@ struct EQView: View {
 
     /// 320 on an iPad, less when the window is short; 230 on an iPhone.
     private var graphHeight: CGFloat {
-        guard width == .regular else { return 230 }
+        guard width == .regular else { return studio.selected == nil ? 230 : 190 } // a band's card takes room
         return height > 0 ? min(320, max(200, height * 0.32)) : 320
     }
 
@@ -36,8 +36,8 @@ struct EQView: View {
                     .frame(height: graphHeight)
                 if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
                 ToolStrip()
-                // Where there's room, the picked band under the graph, either way up; an iPhone's is a sheet.
-                if width == .regular { BandStrip().padding(.horizontal, 8).padding(.top, 4) }
+                // The picked band under the graph, on an iPhone as on an iPad.
+                BandStrip().padding(.horizontal, width == .regular ? 8 : 0).padding(.top, 4)
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -107,12 +107,6 @@ struct EQView: View {
         .navigationTitle("EQ Studio")
         .settingsButton()
         .toolbar { EQToolbar() }
-        .inspector(isPresented: Binding(get: { width == .compact && studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
-            BandEditor()
-                .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
-                .presentationDetents([.medium, .large])
-                .presentationBackgroundInteraction(.enabled(upThrough: .medium))
-        }
         .alert("Bass and Treble", isPresented: Binding(get: { note != nil }, set: { if !$0 { note = nil } })) {
             Button("OK") {}
         } message: {
