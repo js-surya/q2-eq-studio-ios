@@ -189,6 +189,7 @@ struct ResponseView: View {
 /// Under the graph while a measurement is on it: its name (tap to take it off) and AutoEQ.
 struct ShownBar: View {
     @Environment(Studio.self) private var studio
+    @State private var roomy = true // the row has room for AutoEQ's word beside the name
 
     var body: some View {
         let r = studio.response
@@ -214,14 +215,12 @@ struct ShownBar: View {
                 .layoutPriority(1)
                 Spacer(minLength: 4)
                 if !r.target.isEmpty {
-                    // Labelled while the name fits beside it; the icon alone when it doesn't.
-                    ViewThatFits(in: .horizontal) {
-                        fit(labelled: true).fixedSize()
-                        fit(labelled: false)
-                    }
-                    .frame(minWidth: 44, alignment: .trailing)
+                    // Labelled where the row is wide enough, the icon alone where it isn't; at its own size
+                    // (a ViewThatFits here, in a list's row, drew an empty pill the row's height).
+                    fit(labelled: roomy).fixedSize()
                 }
             }
+            .onGeometryChange(for: Bool.self) { $0.size.width >= 380 } action: { roomy = $0 }
         }
     }
 
@@ -233,12 +232,13 @@ struct ShownBar: View {
             if r.fitting {
                 ProgressView().controlSize(.mini)
             } else if labelled {
-                Label("AutoEQ", systemImage: "wand.and.stars")
+                HStack(spacing: 5) { Image(systemName: "wand.and.stars"); Text("AutoEQ") }
             } else {
                 Image(systemName: "wand.and.stars").accessibilityLabel("AutoEQ")
             }
         }
-        .buttonStyle(.glassProminent)
+        // Filled, not glass: in a list's row on iOS 27.1 the glass one drew as an empty pill the row's height
+        .buttonStyle(.borderedProminent)
         .buttonBorderShape(labelled ? .capsule : .circle)
         .controlSize(.small)
         .font(.subheadline.weight(.semibold))
