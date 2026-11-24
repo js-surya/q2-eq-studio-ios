@@ -56,6 +56,7 @@ extension Studio {
             let anyOn = preset.bands.contains { $0.on }
             change { p in for k in p.bands.indices { p.bands[k].on = !anyOn } }
         case "v": if once { showEachBand.toggle() }
+        case "l": if once { toggleGraphEdit() }
         case "c":
             guard once else { break }
             if live.on { setMode(live.mode != "peq") } else { say("EQ on and off is for a Q2 with live EQ.") }
@@ -90,6 +91,7 @@ struct KeysSheet: View {
         (",  .", "The band's Q, wider or narrower"),
         ("B", "Every band off, or on"),
         ("V", "Each band's own curve"),
+        ("L", "Edit on the graph, or lock it"),
         ("C", "EQ on or off on the Q2"),
         ("/", "Search the presets"),
         ("⌘Z, ⇧⌘Z", "Undo, redo"),

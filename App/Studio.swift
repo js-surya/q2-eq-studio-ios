@@ -203,6 +203,17 @@ final class Studio {
     var showEachBand = UserDefaults.standard.bool(forKey: "eq.eachBand") {
         didSet { UserDefaults.standard.set(showEachBand, forKey: "eq.eachBand") }
     }
+    /// The graph takes drags, pinches and double-taps: off (locked) until the pencil on it turns it on, so a
+    /// stray touch never moves the curve. Kept between launches. The card, the table and the keys still edit.
+    var graphEdit = UserDefaults.standard.bool(forKey: "eq.graphEdit") {
+        didSet { UserDefaults.standard.set(graphEdit, forKey: "eq.graphEdit") }
+    }
+
+    func toggleGraphEdit() {
+        graphEdit.toggle()
+        buzz(.light)
+        say(graphEdit ? "Drag, pinch and double-tap on the graph to edit it." : "The graph is locked: a touch there won't move the curve.")
+    }
 
     private var history: [Preset] = []
     private var future: [Preset] = []

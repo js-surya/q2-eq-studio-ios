@@ -66,6 +66,7 @@ struct GraphView: View {
         let split = points.contains { abs($0.left - $0.right) > 0.01 }
         let faded = !still && studio.live.on && studio.live.mode != "peq" // the Q2 isn't playing it
         let picked = still ? nil : studio.band(studio.selected)
+        let edits = interactive && studio.graphEdit // drags, pinches and double-taps: only with the pencil on
 
         GeometryReader { geo in
             let g = still ? EdgeInsets(top: 46, leading: 40, bottom: 30, trailing: 24) : GraphView.gap
@@ -199,7 +200,7 @@ struct GraphView: View {
             .overlay {
                 // The curve itself can be taken: a band of touch along the line (36 pt) pulls the band
                 // that shapes it most there. Off the line the page scrolls.
-                if interactive {
+                if edits {
                     let band = CurveBand(points: stride(from: 0, to: freqs.count, by: 4).map { k in
                         CGPoint(x: s.x(freqs[k]), y: s.y(min(max(points[k].left, -range), range)))
                     })
@@ -212,7 +213,7 @@ struct GraphView: View {
             .overlay {
                 // Each dot is a handle a finger can take (44 pt): only a drag that starts on one moves a
                 // band, so a swipe anywhere else on the graph scrolls the page.
-                if interactive {
+                if edits {
                     ForEach(preset.bands) { b in
                         Color.clear
                             .frame(width: 44, height: 44)
@@ -221,13 +222,24 @@ struct GraphView: View {
                             .gesture(handleDrag(b.id, s))
                             .accessibilityHidden(true)
                     }
+                } else if interactive {
+                    // Locked, a tap on a dot still picks its band, for the card: picking changes nothing.
+                    ForEach(preset.bands) { b in
+                        Color.clear
+                            .frame(width: 44, height: 44)
+                            .contentShape(Circle())
+                            .position(x: s.x(b.freq), y: s.y(min(max(b.gain, -s.range), s.range)))
+                            .onTapGesture { studio.selected = b.id }
+                            .accessibilityHidden(true)
+                    }
                 }
             }
             .coordinateSpace(.named("graph"))
             .contentShape(Rectangle())
-            .simultaneousGesture(interactive ? pinchGesture : nil)
-            .simultaneousGesture(interactive ? doubleTap(s) : nil)
-            .gesture(interactive ? holdToInspect(s) : nil)
+            .simultaneousGesture(edits ? pinchGesture : nil)
+            .simultaneousGesture(edits ? doubleTap(s) : nil)
+            .gesture(interactive ? holdToInspect(s) : nil) // reading the curve works locked too
+            .overlay(alignment: .topTrailing) { if interactive { EditToggle(on: studio.graphEdit) { studio.toggleGraphEdit() } } }
             .sensoryFeedback(trigger: studio.selected) { _, new in new == nil ? nil : .impact(weight: .light, intensity: 0.6) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("EQ curve")
@@ -466,4 +478,27 @@ private struct CurveBand: Shape {
 /// out at these.
 enum Plot {
     static let freqs: [Double] = (0..<240).map { pow(10, log10(EQ.freqMin) + (log10(EQ.freqMax) - log10(EQ.freqMin)) * Double($0) / 239) }
+}
+
+/// The graph's pencil, top right: on (the accent, filled) the graph edits; off it's locked.
+private struct EditToggle: View {
+    @Environment(Studio.self) private var studio
+    let on: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "pencil.and.outline")
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(on ? Color.white : Color.secondary)
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .circle)
+        .padding(6)
+        .accessibilityLabel("Edit on the graph")
+        .accessibilityValue(on ? "On" : "Off, locked")
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .help("Edit on the graph, or lock it (L)")
+    }
 }

@@ -60,7 +60,9 @@ struct EQView: View {
                 }
             } footer: {
                 if showBands {
-                    Text("Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve.")
+                    Text(studio.graphEdit
+                         ? "Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve."
+                         : "The graph is locked, so a touch there won't move the curve: tap its pencil to drag, pinch and double-tap there. Touch and hold to read it.")
                 }
             }
 
