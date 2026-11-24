@@ -93,7 +93,7 @@ scripts/test.sh
 | `Packages/EQCore` | The EQ logic, as a Swift package: EQ Studio's `web/eq.js` (a preset's text, the Q2's limits, the curve), `formats.js`, `poweramp.js`, `squig.js` and `fit.js`, each with its tests, which also read back every AutoEq preset |
 | `App/` | The app: talking to EQ Studio, the EQ, Presets, Response, Card and Settings |
 | `Config/` | Build settings; your signing team goes in `Signing.xcconfig` (gitignored) |
-| `docs/` | Screenshots and the [privacy policy](docs/PRIVACY.md) |
+| `docs/` | Screenshots, the [privacy policy](docs/PRIVACY.md) and the [App Store notes](docs/APP_STORE.md) |
 
 ## Privacy
 

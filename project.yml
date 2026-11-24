@@ -52,3 +52,5 @@ targets:
           NSAllowsLocalNetworking: true
           NSAllowsArbitraryLoads: true
         UIRequiredDeviceCapabilities: []
+        # HTTPS and the system's own encryption only: exempt, so TestFlight doesn't ask on each upload.
+        ITSAppUsesNonExemptEncryption: false
