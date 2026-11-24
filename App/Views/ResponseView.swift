@@ -81,7 +81,10 @@ struct ResponseView: View {
         .searchFocused($searchFocus)
         .onChange(of: studio.searchAsked) { takeSearch() }
         .onAppear { takeSearch() }
-        .searchable(text: $search, prompt: phones.map { "Search \($0.count.formatted()) \(r.kindWord)" } ?? "Search")
+        // On an iPhone the field stays under the title, not hidden until the list is pulled down; an iPad's
+        // is in the bar, in sight already.
+        .searchable(text: $search, placement: width == .compact ? .navigationBarDrawer(displayMode: .always) : .automatic,
+                    prompt: phones.map { "Search \($0.count.formatted()) \(r.kindWord)" } ?? "Search")
         .task { await r.load() }
         .refreshable { await r.load() }
     }
