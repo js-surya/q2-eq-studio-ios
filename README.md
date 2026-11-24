@@ -21,6 +21,10 @@
 </p>
 
 <p align="center">
+  <a href="https://testflight.apple.com/join/FEpafpXF"><img alt="Join the beta on TestFlight" src="https://img.shields.io/badge/TestFlight-join%20the%20beta-0D96F6?logo=apple&logoColor=white"></a>
+</p>
+
+<p align="center">
   <img src="docs/screenshots/eq.png" width="180" alt="The EQ: a measurement under the curve, the bands below">
   <img src="docs/screenshots/presets.png" width="180" alt="Presets: recent and popular, filtered by kind">
   <img src="docs/screenshots/preset.png" width="180" alt="A preset's curve, read only, before Apply">
@@ -58,8 +62,9 @@
 
 ## Download
 
-Coming to TestFlight, then the App Store. Until then, build it yourself (below); [Releases](../../releases) list what
-changed in each version.
+Join the **[TestFlight beta](https://testflight.apple.com/join/FEpafpXF)** on your iPhone or iPad: open the link on the
+device and follow the steps. EQ Studio is distributed through TestFlight (and later the App Store), or build it
+yourself (below); [Releases](../../releases) list what changed in each version.
 
 ## Requirements
 
