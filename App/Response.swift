@@ -229,12 +229,26 @@ final class Response {
         return URLSession(configuration: c)
     }()
 
+    /// A pull on the Response tab: the reviewers and every list read again from squig.link, the copy kept
+    /// on this device dropped. The measurement on the graph stays.
+    func refresh() async {
+        guard !loading, !everyLoading else { return }
+        try? FileManager.default.removeItem(at: Self.listsFile)
+        sites = nil
+        books = [:]
+        keys = [:]
+        memo = nil
+        everyLoaded = false
+        await load()
+    }
+
     private func readLists() {
         guard let d = try? Data(contentsOf: Self.listsFile),
               let kept = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
               let saved = kept["saved"] as? Double, Date().timeIntervalSince1970 - saved < Self.listsKeep,
               let lists = kept["lists"] as? [String: [[String]]] else { return }
-        for (id, rows) in lists where books[id] == nil {
+        // The picked reviewer's list is read fresh each launch, never this copy.
+        for (id, rows) in lists where books[id] == nil && id != currentSite?.id {
             books[id] = rows.compactMap { $0.count == 2 ? Squig.Phone(name: $0[0], file: $0[1], find: $0[0].lowercased()) : nil }
         }
     }

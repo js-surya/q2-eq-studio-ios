@@ -97,7 +97,11 @@ struct ResponseView: View {
                     prompt: phones.map { "Search \($0.count.formatted()) \(r.kindWord)" } ?? "Search")
         .searchFocused($searchFocus) // after .searchable, so it reaches the field
         .task { await r.load() }
-        .refreshable { await r.load() }
+        // A pull reads squig.link again: the reviewers, this one's list, and while searching, everyone's.
+        .refreshable {
+            await r.refresh()
+            if !search.trimmingCharacters(in: .whitespaces).isEmpty { await r.loadEvery() }
+        }
         // A search reads every reviewer's list (once a day), to narrow "Measured by" to those with a match.
         .task(id: query.isEmpty) { if !query.isEmpty { await r.loadEvery() } }
         .onChange(of: counts) { follow(counts) }
