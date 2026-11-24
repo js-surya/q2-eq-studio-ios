@@ -15,6 +15,15 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var studio = studio
         Form {
+            if studio.link == nil {
+                Section {
+                    Button("Connect a Q2", systemImage: "qrcode.viewfinder") { studio.trying = false }
+                } header: {
+                    Text("Q2")
+                } footer: {
+                    Text("Without a Q2 the EQ stays on this device. Connect one to hear it, and to reach its card.")
+                }
+            }
             if let link = studio.link {
                 Section {
                     LabeledContent("Address", value: link.address)

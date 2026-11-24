@@ -22,6 +22,7 @@ struct CardView: View {
             Section {
                 Button("Save to the Card…", systemImage: "square.and.arrow.down") { askSave() }
                     .keyboardShortcut("s", modifiers: .command)
+                    .disabled(studio.link == nil)
             } footer: {
                 if studio.live.local {
                     Text("This Q2 Pod can't take the EQ live. Save it here, then on the Q2 open the EQ page's Import from SD /EQ.")
@@ -29,7 +30,10 @@ struct CardView: View {
             }
 
             Section("On the Card") {
-                if let e = studio.cardError {
+                if studio.link == nil {
+                    Label("Connect a Q2 to see the presets on its card.", systemImage: "sdcard").foregroundStyle(.secondary)
+                    Button("Connect a Q2", systemImage: "qrcode.viewfinder") { studio.trying = false }
+                } else if let e = studio.cardError {
                     Label(e, systemImage: "sdcard").foregroundStyle(.secondary)
                 } else if studio.cardFiles.isEmpty && !studio.cardLoading {
                     Text("No presets in the card's EQ folder yet.").foregroundStyle(.secondary)

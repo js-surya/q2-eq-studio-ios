@@ -4,6 +4,7 @@
 // (web/app.js): the preset as it stands goes to the Q2 unless the Q2 already has it, one request at
 // a time, the newest replacing any still waiting.
 import EQCore
+import Compression
 import Foundation
 import Observation
 import SwiftUI
@@ -73,6 +74,18 @@ final class Studio {
     var accent: Color { accentChoice.color }
 
     private static let storeKey = "eq-studio"
+    private static let tryingKey = "eq.trying"
+
+    /// Looking around without a Q2: every tab, the EQ edited on this device alone, Presets and Response
+    /// from the web, and Card asking for a Q2. Kept between launches until a Q2 is connected.
+    var trying = UserDefaults.standard.bool(forKey: Studio.tryingKey) {
+        didSet { UserDefaults.standard.set(trying, forKey: Studio.tryingKey) }
+    }
+
+    func tryWithoutQ2() {
+        buzz(.light)
+        trying = true
+    }
 
     init() {
         link = LinkStore.load()
@@ -103,15 +116,22 @@ final class Studio {
     func connect(_ link: Q2Link) {
         buzz(.success)
         LinkStore.save(link)
+        // An EQ made without a Q2 stays one undo away once the Q2's own EQ comes in.
+        let fromTrying = trying
+        trying = false
         self.link = link
         live = LiveState()
-        history = []
-        future = []
+        keepOnFirst = fromTrying
+        if !fromTrying {
+            history = []
+            future = []
+        }
         Task { await readState(first: true) }
     }
 
     func disconnect() {
         LinkStore.forget()
+        trying = false
         link = nil
         live = LiveState()
         cardFiles = []
@@ -358,6 +378,7 @@ final class Studio {
             clearError()
         }
         if let text = state.preset { take(text, first: first) }
+        keepOnFirst = false
         if sent == nil { sent = serialize(preset) }
     }
 
@@ -378,6 +399,9 @@ final class Studio {
     var addresses: [URL] { LinkStore.addresses }
 
     /// The Q2's PEQ, as this device's preset, keeping the name; the first time without an undo step.
+    /// Set by connect() after trying without a Q2: the Q2's EQ comes in with the tried one under Undo.
+    private var keepOnFirst = false
+
     private func take(_ text: String, first: Bool) {
         switch parse(text) {
         case .failure(let e):
@@ -387,7 +411,7 @@ final class Studio {
             theirs.name = preset.name
             sent = serialize(theirs)
             if serialize(preset) == sent { return }
-            if first || history.isEmpty {
+            if (first && !keepOnFirst) || history.isEmpty {
                 preset = theirs
             } else {
                 history.append(preset)
@@ -407,10 +431,14 @@ final class Studio {
         URL.cachesDirectory.appending(path: "presets.json")
     }
 
-    /// The catalogue from the card, the copy kept from last time shown first. Its 5 MB are read and
-    /// decoded off the main thread, so a pull to refresh never stalls the scrolling.
+    /// The same catalogue EQ Studio puts on the card, from its repository, while there's no Q2.
+    private static let publicCatalogue = URL(string: "https://raw.githubusercontent.com/DiamondBond/q2-eq-studio/main/data/presets.json.gz")!
+
+    /// The catalogue from the card (or, without a Q2, from EQ Studio's repository), the copy kept from
+    /// last time shown first. Its 5 MB are read and decoded off the main thread, so a pull to refresh
+    /// never stalls the scrolling.
     func loadCatalogue() async {
-        guard let client, !catalogueLoading else { return }
+        guard !catalogueLoading, client != nil || trying else { return }
         catalogueLoading = true
         defer { catalogueLoading = false }
         let file = Studio.catalogueFile
@@ -420,7 +448,14 @@ final class Studio {
             catalogue = kept
         }
         do {
-            let data = try await client.presets()
+            let data: Data
+            if let client {
+                data = try await client.presets()
+            } else {
+                let (gz, response) = try await URLSession.shared.data(from: Studio.publicCatalogue)
+                guard (response as? HTTPURLResponse)?.statusCode == 200, let json = gunzip(gz) else { throw Q2Error.unreachable }
+                data = json
+            }
             let fresh = try await Task.detached(priority: .utility) {
                 let c = try Catalogue(json: data)
                 try? data.write(to: file)
@@ -544,4 +579,31 @@ final class Studio {
             return error.localizedDescription
         }
     }
+}
+
+/// A gzip file's contents: its header and trailer around raw DEFLATE, which Compression reads.
+func gunzip(_ data: Data) -> Data? {
+    let b = [UInt8](data)
+    guard b.count > 18, b[0] == 0x1f, b[1] == 0x8b, b[2] == 8 else { return nil }
+    let flags = b[3]
+    var i = 10
+    if flags & 4 != 0 { // FEXTRA
+        guard i + 2 <= b.count else { return nil }
+        let extra = Int(b[i]) | Int(b[i + 1]) << 8
+        i += 2 + extra
+    }
+    if flags & 8 != 0 { while i < b.count, b[i] != 0 { i += 1 }; i += 1 } // FNAME
+    if flags & 16 != 0 { while i < b.count, b[i] != 0 { i += 1 }; i += 1 } // FCOMMENT
+    if flags & 2 != 0 { i += 2 } // FHCRC
+    guard i < b.count - 8 else { return nil }
+    let t = b.count - 4
+    let lo = Int(b[t]) | Int(b[t + 1]) << 8
+    let hi = Int(b[t + 2]) << 16 | Int(b[t + 3]) << 24
+    let size = lo | hi
+    let capacity = max(size, 1) // ISIZE: the length mod 2^32, enough for a catalogue
+    let deflated = Array(b[i..<(b.count - 8)])
+    var out = [UInt8](repeating: 0, count: capacity)
+    let n = compression_decode_buffer(&out, capacity, deflated, deflated.count, nil, COMPRESSION_ZLIB)
+    guard n == size else { return nil }
+    return Data(out[0..<n])
 }

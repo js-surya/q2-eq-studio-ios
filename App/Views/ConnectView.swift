@@ -66,6 +66,9 @@ struct ConnectView: View {
                     }
                     .buttonStyle(.glass)
                     .controlSize(.large)
+                    Button("Try Without a Q2") { studio.tryWithoutQ2() }
+                        .font(.subheadline.weight(.medium))
+                        .padding(.top, 2)
                     Label("Away from home? Use the Q2's Tailscale address.", systemImage: "point.3.connected.trianglepath.dotted")
                         .font(.footnote)
                         .foregroundStyle(.secondary)

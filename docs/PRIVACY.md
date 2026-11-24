@@ -13,6 +13,9 @@ server of the app's own.
   AutoEq's catalogue from the card.
 - **Signing in:** EQ Studio's key (from its QR code, or got with its PIN) is kept in the Apple Keychain on your
   device, and the Q2's addresses in the app's settings. The PIN itself is not stored. **Sign Out** removes both.
+- **Without a Q2** (Try Without a Q2): the EQ stays on your device, and the list of AutoEq presets is read from
+  EQ Studio's public repository on GitHub (`raw.githubusercontent.com`) without signing in; GitHub sees your IP
+  address, as with any web request.
 - **The camera** is used only while you scan EQ Studio's QR code, on your device. No picture is kept.
 - **Response:** when you pick a measurement or a target, the app reads it from [squig.link](https://squig.link),
   without signing in; squig.link sees your IP address, as with any web request. Only which reviewer, target and

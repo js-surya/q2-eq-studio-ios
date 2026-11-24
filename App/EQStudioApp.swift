@@ -40,7 +40,7 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            if studio.link == nil {
+            if studio.link == nil && !studio.trying {
                 ConnectView()
             } else {
                 TabView(selection: $tab) {
@@ -148,6 +148,9 @@ struct LiveStatus: View {
             if live.error != nil {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
                 Text("Can't reach the Q2").font(.footnote.weight(.medium)).lineLimit(1)
+            } else if studio.link == nil {
+                Image(systemName: "hifispeaker.slash").foregroundStyle(.secondary)
+                Text("No Q2 connected").font(.footnote.weight(.medium)).lineLimit(1)
             } else if !live.known {
                 ProgressView().controlSize(.small)
                 Text("Reaching the Q2…").font(.footnote).lineLimit(1)
@@ -177,6 +180,11 @@ struct LiveStatus: View {
                 } else if let retry = live.retry {
                     Button("Retry") { retry() }.buttonStyle(.glass)
                 }
+            } else if studio.link == nil {
+                Image(systemName: "hifispeaker.slash").foregroundStyle(.secondary)
+                Text("No Q2 connected: the EQ stays on this device").font(.footnote).lineLimit(2)
+                Spacer(minLength: 4)
+                Button("Connect") { studio.trying = false }.buttonStyle(.glass)
             } else if !live.known {
                 ProgressView().controlSize(.small)
                 Text("Reaching the Q2…").font(.footnote)
