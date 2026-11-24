@@ -71,8 +71,16 @@ struct GraphView: View {
             let g = still ? EdgeInsets(top: 46, leading: 40, bottom: 30, trailing: 24) : GraphView.gap
             let s = Scale(rect: CGRect(x: g.leading, y: g.top, width: max(geo.size.width - g.leading - g.trailing, 1),
                                        height: max(geo.size.height - g.top - g.bottom, 1)), range: range)
+            // What the drawing needs, taken here: it's drawn off the main thread, so it reads none of the
+            // studio or the view's state itself.
+            let eachBand = studio.showEachBand
+            let crossing = dragging != nil || pinchQ != nil
+            let pointer = holding ?? (studio.inspect ? hover : nil)
+            let dots = Dots(picked: picked, hovered: still || dragging != nil ? nil : hover.flatMap { nearest($0, s) }, background: dotBackground)
             ZStack {
-                Canvas { ctx, size in
+                // Drawn off the main thread on screen: beside the band inspector a drag otherwise waited on
+                // it. The picture is drawn at once, for the image made of it.
+                Canvas(rendersAsynchronously: !still) { ctx, size in
                     drawGrid(ctx, s)
                     let line = { (values: [Double]) -> Path in
                         var path = Path()
@@ -91,7 +99,7 @@ struct GraphView: View {
                     }
                     var eqCtx = ctx
                     if faded { eqCtx.opacity = 0.4 }
-                    if studio.showEachBand {
+                    if eachBand {
                         for (i, b) in preset.bands.enumerated() where b.on && b.gain != 0 && i != picked {
                             eqCtx.stroke(line(freqs.map { bandResponse(b, at: $0, rate: rate) }), with: .color(BandColor.of(b).opacity(0.55)),
                                          style: StrokeStyle(lineWidth: 1.25, lineJoin: .round))
@@ -126,7 +134,7 @@ struct GraphView: View {
                             eqCtx.stroke(line(zip(measured, points).map { $0 + $1.right }), with: .color(.primary), style: StrokeStyle(lineWidth: 2.5, lineJoin: .round, dash: [6, 4]))
                         }
                     }
-                    if let picked, dragging != nil || pinchQ != nil {
+                    if let picked, crossing {
                         let b = preset.bands[picked]
                         let c = CGPoint(x: s.x(b.freq), y: s.y(min(max(b.gain, -range), range)))
                         var cross = Path()
@@ -135,9 +143,9 @@ struct GraphView: View {
                         ctx.stroke(cross, with: .color(BandColor.of(b).opacity(0.35)), lineWidth: 1)
                         ctx.fill(Path(ellipseIn: CGRect(x: c.x - 26, y: c.y - 26, width: 52, height: 52)), with: .color(BandColor.of(b).opacity(0.18)))
                     }
-                    drawDots(ctx, s, preset)
+                    drawDots(ctx, s, preset, dots)
                     // Inspect: a line where the pointer is, and a dot on each side's curve there.
-                    if let h = holding ?? (studio.inspect ? hover : nil), s.rect.contains(h) {
+                    if let h = pointer, s.rect.contains(h) {
                         var v = Path()
                         v.move(to: CGPoint(x: h.x, y: s.rect.minY)); v.addLine(to: CGPoint(x: h.x, y: s.rect.maxY))
                         ctx.stroke(v, with: .color(.primary.opacity(0.5)), lineWidth: 1)
@@ -152,7 +160,7 @@ struct GraphView: View {
                         let n = preset.bands.count
                         let words = "\(n) \(n == 1 ? "band" : "bands") · drawn at \(Format.hertz(rate))"
                         ctx.draw(Text(split ? "\(words) · left blue, right orange" : words).font(.system(size: 12, weight: .medium)).foregroundStyle(.secondary),
-                                 at: CGPoint(x: geo.size.width - g.trailing, y: 22), anchor: .trailing)
+                                 at: CGPoint(x: size.width - g.trailing, y: 22), anchor: .trailing)
                     }
                 }
                 if split {
@@ -256,13 +264,19 @@ struct GraphView: View {
         }
     }
 
+    /// What the dots need besides the bands: the picked one, the one under the pointer, the ground.
+    private struct Dots {
+        let picked: Int?
+        let hovered: Band.ID?
+        let background: Color
+    }
+
     /// The dots, as the page draws them: each a ring in its band's colour with its number, dashed when
     /// off; the picked one filled, on top; the one under the pointer ringed.
-    private func drawDots(_ ctx: GraphicsContext, _ s: Scale, _ preset: Preset) {
-        let pickedIndex = still ? nil : studio.band(studio.selected)
+    private func drawDots(_ ctx: GraphicsContext, _ s: Scale, _ preset: Preset, _ dots: Dots) {
+        let pickedIndex = dots.picked, hovered = dots.hovered, dotBackground = dots.background
         var order = preset.bands.indices.filter { $0 != pickedIndex }
         if let pickedIndex { order.append(pickedIndex) }
-        let hovered = still || dragging != nil ? nil : hover.flatMap { nearest($0, s) }
         for i in order {
             let b = preset.bands[i]
             let picked = i == pickedIndex

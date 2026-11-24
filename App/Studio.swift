@@ -109,7 +109,21 @@ final class Studio {
         BandColor.choice = accentChoice
     }
 
+    /// The EQ is kept once edits settle, not on each step of a drag: every write to the defaults redraws
+    /// each view that keeps a setting there (the folds), the whole EQ screen with them.
     private func store() {
+        storing?.cancel()
+        storing = Task {
+            try? await Task.sleep(for: .milliseconds(400))
+            if !Task.isCancelled { storeNow() }
+        }
+    }
+    @ObservationIgnored private var storing: Task<Void, Never>?
+
+    /// Keeps the EQ now: the app is leaving the screen.
+    func storeNow() {
+        storing?.cancel()
+        storing = nil
         if let d = try? JSONEncoder().encode(preset) { UserDefaults.standard.set(d, forKey: Studio.storeKey) }
     }
 
@@ -146,11 +160,42 @@ final class Studio {
     private(set) var curve: [(left: Double, right: Double)] = responses(.flat(), at: Plot.freqs)
     private(set) var autoFigure = 0.0
     private(set) var warnings: [String] = EQCore.warnings(.flat())
+    /// What the screen shows besides the curve and the bands. A view reading this, not the preset, isn't
+    /// drawn again while a band is dragged.
+    private(set) var outline = Outline(.flat())
 
+    struct Outline: Equatable {
+        var name: String
+        var bandCount: Int
+        var allOff: Bool
+        var bass: Double
+        var treble: Double
+        var auto: Bool
+        var preamp: Double
+        var balance: Double
+
+        init(_ p: Preset) {
+            name = p.name
+            bandCount = p.bands.count
+            allOff = !p.bands.contains { $0.on }
+            bass = Knob.bass.gain(in: p)
+            treble = Knob.treble.gain(in: p)
+            auto = p.auto
+            preamp = p.preamp
+            balance = p.balance
+        }
+
+        func gain(_ knob: Knob) -> Double { knob == .bass ? bass : treble }
+    }
+
+    /// A value changes only when it's new: an assignment, even of the same value, redraws every view
+    /// that reads it, and a drag makes dozens a second.
     private func work() {
         curve = responses(preset, at: Plot.freqs, rate: rate)
-        autoFigure = autoPreamp(preset, rate: rate)
-        warnings = EQCore.warnings(preset, rate: rate)
+        let figure = autoPreamp(preset, rate: rate), w = EQCore.warnings(preset, rate: rate), o = Outline(preset)
+        if autoFigure != figure { autoFigure = figure }
+        if warnings != w { warnings = w }
+        if outline != o { outline = o }
     }
     var selected: Band.ID?
     /// Each band's own curve on the graph: kept between launches.
@@ -173,7 +218,7 @@ final class Studio {
         var next = preset
         edit(&next)
         if next == preset { return }
-        playing = nil
+        if playing != nil { playing = nil }
         let now = Date()
         if key == nil || key != lastKey || now.timeIntervalSince(lastAt) > 1.0 {
             history.append(preset)
@@ -240,7 +285,6 @@ final class Studio {
         var local = false // this Q2 Pod can't take an EQ: an editor only
         var on = false // it takes the EQ live
         var mode: String? // what plays: off, 3eq or peq
-        var busy = false
         var sending = false // "Sending…", held a moment after the last answer
         var error: String?
         var retry: (@MainActor () -> Void)?
@@ -249,6 +293,8 @@ final class Studio {
     private enum Item { case eq(String), mode(Bool) }
 
     var live = LiveState()
+    /// A request is out: the pump's own, not shown, so it isn't in `live`, which the status redraws for.
+    @ObservationIgnored private var busy = false
     private var queue: [Item] = []
     private var sent: String?
     private var calm: Task<Void, Never>?
@@ -262,7 +308,7 @@ final class Studio {
         let t = serialize(preset)
         if t == sent { return }
         sent = t
-        live.mode = "peq"
+        if live.mode != "peq" { live.mode = "peq" }
         queue = [.eq(t)]
         pump()
     }
@@ -283,10 +329,10 @@ final class Studio {
     }
 
     private func pump() {
-        guard !live.busy, !queue.isEmpty, let client else { return }
+        guard !busy, !queue.isEmpty, let client else { return }
         let item = queue.removeFirst()
-        live.busy = true
-        live.sending = true
+        busy = true
+        if !live.sending { live.sending = true }
         calm?.cancel()
         Task {
             var failure: String?
@@ -300,7 +346,7 @@ final class Studio {
                     let why = r.error ?? ""
                     failure = why.range(of: #"^line \d"#, options: [.regularExpression, .caseInsensitive]) != nil
                         ? "The Q2 didn't take it: \(why)" : (why.isEmpty ? "The Q2 didn't take it." : why)
-                } else if queue.isEmpty, let mode = r.mode {
+                } else if queue.isEmpty, let mode = r.mode, live.mode != mode {
                     live.mode = mode
                 }
             } catch Q2Error.local {
@@ -308,7 +354,7 @@ final class Studio {
             } catch {
                 failure = error.localizedDescription
             }
-            live.busy = false
+            busy = false
             if let failure, queue.isEmpty {
                 switch item {
                 case .eq: setError(failure) { [weak self] in self?.resend() }
@@ -334,6 +380,7 @@ final class Studio {
     }
 
     private func clearError() {
+        guard live.error != nil || live.retry != nil else { return }
         live.error = nil
         live.retry = nil
     }
@@ -370,7 +417,7 @@ final class Studio {
         }
         live.local = false
         live.on = true
-        if live.busy || !queue.isEmpty { return }
+        if busy || !queue.isEmpty { return }
         live.mode = state.mode
         if let e = state.error {
             setError(e) { [weak self] in Task { await self?.readState(first: first) } }

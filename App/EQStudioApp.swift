@@ -97,7 +97,9 @@ struct RootView: View {
                 .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
 
-                .onChange(of: phase) { if phase == .active { Task { await studio.readState() } } }
+                .onChange(of: phase) {
+                    if phase == .active { Task { await studio.readState() } } else { studio.storeNow() }
+                }
                 .sheet(isPresented: $showSignIn) { SignInForm() }
                 .dropDestination(for: URL.self) { urls, _ in
                     // A preset's file dropped on the window opens, as on the page.

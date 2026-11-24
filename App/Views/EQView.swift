@@ -16,14 +16,14 @@ struct EQView: View {
             // The graph pinned above the list: it stays in view while the bands scroll, and a pull on the
             // list moves the list alone.
             VStack(spacing: 6) {
-                if !studio.preset.name.isEmpty {
+                if !studio.outline.name.isEmpty {
                     HStack(spacing: 6) {
                         Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
-                        Marquee(text: studio.preset.name)
+                        Marquee(text: studio.outline.name)
                     }
                     .padding(.horizontal, 8)
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Playing \(studio.preset.name)")
+                    .accessibilityLabel("Playing \(studio.outline.name)")
                 }
                 GraphView()
                     .frame(height: width == .regular ? 320 : 230)
@@ -39,31 +39,15 @@ struct EQView: View {
                 if width == .regular {
                     BandTableHeader().selectionDisabled()
                 }
-                ForEach(Array(studio.preset.bands.enumerated()), id: \.element.id) { index, band in
-                    Group {
-                        if width == .regular { BandTableRow(index: index, band: band) } else { BandRow(index: index, band: band) }
-                    }
-                        .tag(band.id)
-                        .swipeActions(edge: .leading) {
-                            Button(band.on ? "Off" : "On", systemImage: band.on ? "speaker.slash" : "speaker.wave.2") {
-                                studio.change { p in if let k = p.bands.firstIndex(where: { $0.id == band.id }) { p.bands[k].on.toggle() } }
-                            }
-                            .tint(.gray)
-                        }
-                }
-                .onDelete { offsets in
-                    let ids = offsets.map { studio.preset.bands[$0].id }
-                    for id in ids { studio.deleteBand(id) }
-                }
-                .onMove { from, to in studio.change { $0.bands.move(fromOffsets: from, toOffset: to) } }
+                BandRows(table: width == .regular)
 
                 Button("Add Band", systemImage: "plus.circle.fill") { studio.addBand() }
-                    .disabled(studio.preset.bands.count >= EQ.maxBands)
+                    .disabled(studio.outline.bandCount >= EQ.maxBands)
                     .selectionDisabled()
               }
             } header: {
                 Fold(title: "Bands", open: $showBands) {
-                    Text("\(studio.preset.bands.count) of \(EQ.maxBands)").monospacedDigit()
+                    Text("\(studio.outline.bandCount) of \(EQ.maxBands)").monospacedDigit()
                 }
             } footer: {
                 if showBands {
@@ -80,7 +64,7 @@ struct EQView: View {
                 }
             } header: {
                 Fold(title: "Bass and Treble", open: $showKnobs) {
-                    let b = Knob.bass.gain(in: studio.preset), t = Knob.treble.gain(in: studio.preset)
+                    let b = studio.outline.bass, t = studio.outline.treble
                     if !showKnobs && (b != 0 || t != 0) {
                         Text("\(Format.dB(b, digits: 1)) · \(Format.dB(t, digits: 1))").monospacedDigit()
                     }
@@ -126,6 +110,33 @@ struct EQView: View {
     }
 }
 
+/// The bands' rows, on their own: these alone read every band, so a drag redraws them and the dragged
+/// row, not the screen around them (its toolbar, the tab bar's status).
+private struct BandRows: View {
+    @Environment(Studio.self) private var studio
+    let table: Bool
+
+    var body: some View {
+        ForEach(Array(studio.preset.bands.enumerated()), id: \.element.id) { index, band in
+            Group {
+                if table { BandTableRow(index: index, band: band) } else { BandRow(index: index, band: band) }
+            }
+                .tag(band.id)
+                .swipeActions(edge: .leading) {
+                    Button(band.on ? "Off" : "On", systemImage: band.on ? "speaker.slash" : "speaker.wave.2") {
+                        studio.change { p in if let k = p.bands.firstIndex(where: { $0.id == band.id }) { p.bands[k].on.toggle() } }
+                    }
+                    .tint(.gray)
+                }
+        }
+        .onDelete { offsets in
+            let ids = offsets.map { studio.preset.bands[$0].id }
+            for id in ids { studio.deleteBand(id) }
+        }
+        .onMove { from, to in studio.change { $0.bands.move(fromOffsets: from, toOffset: to) } }
+    }
+}
+
 private struct BandRow: View {
     @Environment(Studio.self) private var studio
     let index: Int
@@ -167,13 +178,12 @@ private struct PreampSection: View {
     @AppStorage("eq.fold.output") private var open = true
 
     var body: some View {
-        let p = studio.preset
+        let p = studio.outline
         Section {
           if open {
             Toggle("Auto Preamp", isOn: Binding(get: { p.auto }, set: { v in studio.change { $0.auto = v } }))
             if p.auto {
-                LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(studio.autoFigure))
-                    .foregroundStyle(.secondary)
+                AutoFigure()
             } else {
                 ValueSlider(title: "Preamp", value: p.preamp, range: -24...12, step: 0.1, format: { Format.dB($0) }) { v in
                     studio.change("preamp") { $0.preamp = v }
@@ -201,13 +211,23 @@ private struct PreampSection: View {
     }
 }
 
+/// Auto's preamp, which most drags move: on its own, so only this line is drawn again.
+private struct AutoFigure: View {
+    @Environment(Studio.self) private var studio
+
+    var body: some View {
+        LabeledContent("At \(studio.rate == 44100 ? "44.1" : String(Int(studio.rate / 1000))) kHz", value: Format.dB(studio.autoFigure))
+            .foregroundStyle(.secondary)
+    }
+}
+
 private struct KnobRow: View {
     @Environment(Studio.self) private var studio
     let knob: Knob
     @Binding var note: String?
 
     var body: some View {
-        ValueSlider(title: knob.title, value: knob.gain(in: studio.preset), range: 0...Knob.maxGain, step: 0.5,
+        ValueSlider(title: knob.title, value: studio.outline.gain(knob), range: 0...Knob.maxGain, step: 0.5,
                     format: { Format.dB($0) }) { v in
             guard let next = knob.set(v, in: studio.preset) else {
                 note = "The Q2 takes up to \(EQ.maxBands) bands, so \(knob.title) has no room. Delete a band first."
@@ -420,7 +440,7 @@ private struct ToolStrip: View {
 
     var body: some View {
         @Bindable var studio = studio
-        let allOff = !studio.preset.bands.contains { $0.on }
+        let allOff = studio.outline.allOff
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Tool(title: "Bands", icon: "point.3.connected.trianglepath.dotted", on: studio.showEachBand) { studio.showEachBand.toggle() }
