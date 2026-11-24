@@ -78,8 +78,8 @@ xcodegen generate
 open EQStudio.xcodeproj
 ```
 
-No Q2 at hand? EQ Studio runs on a computer too (its README, Building): start the app in the simulator with
-`EQS_LINK=<the link EQ Studio prints>` and it signs in.
+No Q2 at hand? Tap **Try Without a Q2** on the first screen. To test talking to a Q2, EQ Studio runs on a computer
+too (its README, Building): start the app in the simulator with `EQS_LINK=<the link EQ Studio prints>` and it signs in.
 
 Run the tests and the build before a pull request:
 
@@ -98,9 +98,14 @@ scripts/test.sh
 
 ## Privacy
 
-The app collects no data: no analytics, tracking or ads, and no server of its own. It talks to EQ Studio on your
-Q2, reads measurements from squig.link when you pick one, and shows the credited people's GitHub pictures in
-About. Details are in the [privacy policy](docs/PRIVACY.md).
+The app collects no data: no analytics, tracking or ads, and no server of its own. It talks only to:
+
+- **EQ Studio on your Q2**, at the address you scan or type
+- **squig.link**, for the measurements and targets you pick
+- **GitHub**, for AutoEq's preset list while you try the app without a Q2, and for the profile pictures of the
+  three people in About (the developer, DiamondBond and tyleree)
+
+Details are in the [privacy policy](docs/PRIVACY.md).
 
 ## Contributing
 
