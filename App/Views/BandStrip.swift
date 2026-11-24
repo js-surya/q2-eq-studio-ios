@@ -37,7 +37,7 @@ private struct Card: View {
             HStack(spacing: 8) {
                 title(knob)
                 Spacer(minLength: 4)
-                actions
+                close
             }
             .contentShape(Rectangle())
             .gesture(DragGesture(minimumDistance: 20).onEnded { if $0.translation.height > 40 { studio.selected = nil } })
@@ -50,7 +50,11 @@ private struct Card: View {
                     ForEach(Channel.allCases, id: \.self) { Text(Format.channelName($0)) }
                 }
                 .disabled(knob != nil)
-                Spacer(minLength: 0)
+                Spacer(minLength: 8)
+                // Delete away from ✕ and named, so a near miss on close never deletes the band
+                Button("Delete", systemImage: "trash", role: .destructive) { studio.deleteBand(band.id) }
+                    .buttonStyle(.borderless) // red words, no fill: as a list's destructive action
+                    .font(.subheadline.weight(.medium))
             }
             .pickerStyle(.menu)
             .buttonStyle(.bordered)
@@ -156,6 +160,17 @@ private struct Card: View {
         .pickerStyle(.segmented)
         .frame(minWidth: 170)
         .disabled(knob != nil)
+    }
+
+    /// The compact card's close alone: its Delete is on the line under it.
+    private var close: some View {
+        Button("Done", systemImage: "xmark") { studio.selected = nil }
+            .tint(.secondary)
+            .help("Done (Esc)")
+            .labelStyle(.iconOnly)
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .fixedSize()
     }
 
     private var actions: some View {
