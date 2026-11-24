@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import EQCore
+import GameController
 import SwiftUI
 
 enum Format {
@@ -67,8 +68,34 @@ enum BandColor {
 
 /// What this device is: keys and a pointer are an iPad's, not a phone's.
 enum Device {
-    @MainActor static var hasPointer: Bool {
-        UIDevice.current.userInterfaceIdiom == .pad
+    /// A mouse or trackpad, now: what Inspect's line follows without a touch. A finger reads the curve by
+    /// touching and holding, so without one Inspect has nothing to add.
+    @MainActor static var hasPointer: Bool { Peripherals.shared.mouse }
+    /// A keyboard or a mouse, now: what the Keyboard and Mouse sheet is about.
+    @MainActor static var hasKeyboard: Bool { Peripherals.shared.keyboard || Peripherals.shared.mouse }
+}
+
+/// Which keyboards and mice are connected, kept up to date as they come and go, so the views showing
+/// Inspect and the keys redraw with them.
+@MainActor @Observable final class Peripherals {
+    static let shared = Peripherals()
+    private(set) var mouse = false
+    private(set) var keyboard = false
+
+    private init() {
+        update()
+        let names: [Notification.Name] = [.GCMouseDidConnect, .GCMouseDidDisconnect, .GCKeyboardDidConnect, .GCKeyboardDidDisconnect]
+        for name in names {
+            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
+                Task { @MainActor in Peripherals.shared.update() }
+            }
+        }
+    }
+
+    private func update() {
+        let m = !GCMouse.mice().isEmpty, k = GCKeyboard.coalesced != nil
+        if mouse != m { mouse = m }
+        if keyboard != k { keyboard = k }
     }
 }
 

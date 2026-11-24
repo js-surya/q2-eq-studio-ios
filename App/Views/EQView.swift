@@ -289,7 +289,7 @@ private struct EQToolbar: ToolbarContent {
             Button("Redo", systemImage: "arrow.uturn.forward") { studio.redo() }
                 .disabled(!studio.canRedo)
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-            if Device.hasPointer {
+            if Device.hasKeyboard {
                 Menu("More", systemImage: "ellipsis") {
                     Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
                 }

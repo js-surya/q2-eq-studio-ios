@@ -80,7 +80,7 @@ struct SettingsView: View {
                 if Device.hasPointer { Text("Inspect shows a line where the pointer is on the graph, and the gain there.") }
             }
             Section {
-                if Device.hasPointer { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
+                if Device.hasKeyboard { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
                 // Pushed from Settings itself, not by value: Settings is open through its gear's binding,
                 // and a value pushed onto the tab's path would close it again.
                 Button { showAbout = true } label: {
