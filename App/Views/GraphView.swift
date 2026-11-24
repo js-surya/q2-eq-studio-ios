@@ -502,3 +502,23 @@ private struct EditToggle: View {
         .help("Edit on the graph, or lock it (L)")
     }
 }
+
+extension View {
+    /// A graph held over a list where there's room (an iPad, an unfolded iPhone Duo): the list scrolls under
+    /// it, as the EQ tab's graph stays. Elsewhere the list keeps it as its first row.
+    /// Stacked above the list as the EQ tab's is (a top inset lost the page's large title).
+    func pinnedGraph<G: View>(_ on: Bool, @ViewBuilder _ graph: () -> G) -> some View {
+        VStack(spacing: 0) {
+            if on {
+                graph()
+                    .padding(4)
+                    .background(Color.rowBackground, in: .rect(cornerRadius: 22, style: .continuous))
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.groupedBackground)
+            }
+            self
+        }
+    }
+}

@@ -26,14 +26,6 @@ struct ResponseView: View {
         let counts = query.isEmpty ? [:] : r.reviewers(matching: query)
         let narrowing = !query.isEmpty && r.everyLoaded
         List {
-            if width == .regular {
-                Section {
-                    GraphView(interactive: false, inRow: true)
-                        .frame(height: 220)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                    ShownBar()
-                }
-            }
             Section {
                 Picker("Measured by", selection: Binding(get: { site?.id ?? r.site }, set: { r.site = $0; movedFrom = nil })) {
                     if let sites = r.sites {
@@ -84,6 +76,12 @@ struct ResponseView: View {
                         .buttonStyle(.plain)
                     }
                 }
+            }
+        }
+        .pinnedGraph(width == .regular) {
+            VStack(spacing: 6) {
+                GraphView(interactive: false, inRow: true).frame(height: 220)
+                ShownBar().padding(.horizontal, 12).padding(.bottom, 6)
             }
         }
         .navigationTitle("Response")

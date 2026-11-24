@@ -25,13 +25,6 @@ struct SearchView: View {
         let r = studio.response
         let measured = words.isEmpty ? [] : Array(r.found(words).prefix(Self.rows))
         List {
-            if width == .regular {
-                Section {
-                    GraphView(interactive: false, inRow: true)
-                        .frame(height: 200)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                }
-            }
             Section {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
@@ -109,6 +102,7 @@ struct SearchView: View {
                 }
             }
         }
+        .pinnedGraph(width == .regular) { GraphView(interactive: false, inRow: true).frame(height: 200) }
         .navigationTitle("Presets")
         .settingsButton()
         #if DEBUG
@@ -237,25 +231,33 @@ struct Recent: Codable, Identifiable {
 /// A preset's page: its curve, read only, over the EQ playing now; its bands; and Apply, which plays it.
 struct PresetPage: View {
     @Environment(Studio.self) private var studio
+    @Environment(\.horizontalSizeClass) private var width
     let entry: Catalogue.Entry
     let applied: () -> Void
+
+    /// The two lines' key, under the graph.
+    private var legend: some View {
+        HStack(spacing: 14) {
+            Label("This preset", systemImage: "circle.fill").foregroundStyle(BandColor.accent)
+            Label("Playing now", systemImage: "circle.dashed").foregroundStyle(.secondary)
+        }
+        .font(.caption)
+        .imageScale(.small)
+    }
 
     var body: some View {
         let preset = (try? parse(entry.text, name: entry.name).get()).map(normalize)
         let playing = studio.playing == entry.id
         List {
             if let preset {
-                Section {
-                    PreviewGraph(preset: preset, now: studio.preset)
-                        .frame(height: 240)
-                        .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
-                } footer: {
-                    HStack(spacing: 14) {
-                        Label("This preset", systemImage: "circle.fill").foregroundStyle(BandColor.accent)
-                        Label("Playing now", systemImage: "circle.dashed").foregroundStyle(.secondary)
+                if width != .regular { // where there's room it's held over the list instead (pinnedGraph)
+                    Section {
+                        PreviewGraph(preset: preset, now: studio.preset)
+                            .frame(height: 240)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+                    } footer: {
+                        legend
                     }
-                    .font(.caption)
-                    .imageScale(.small)
                 }
                 Section {
                     LabeledContent("Measured by", value: entry.source)
@@ -285,6 +287,14 @@ struct PresetPage: View {
                 }
             } else {
                 ContentUnavailableView("This preset can't be read", systemImage: "exclamationmark.triangle")
+            }
+        }
+        .pinnedGraph(width == .regular && preset != nil) {
+            if let preset {
+                VStack(alignment: .leading, spacing: 6) {
+                    PreviewGraph(preset: preset, now: studio.preset).frame(height: 240)
+                    legend.padding(.horizontal, 12).padding(.bottom, 6)
+                }
             }
         }
         .navigationTitle(entry.name)
