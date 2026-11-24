@@ -13,14 +13,25 @@ parametric EQ. Its EQ logic is EQ Studio's, ported with the permission of EQ Stu
 authors, who allow it on TestFlight and the App Store (GPL-3.0 with their exception). The icon is EQ Studio's own,
 used with permission. Not affiliated with Shanling: say so in the description and in review notes.
 
-## Beta App Review notes (paste into App Store Connect → TestFlight → Test Information)
-> EQ Studio for Q2 controls the EQ of a Shanling Q2 music player running the open-source Q2 Pod firmware and its
-> EQ Studio app. It needs that player on the same network (or the user's own Tailscale) to sign in: the Q2 shows
-> a QR code and a PIN. A video of the app working with a Q2 is attached: [link].
-> Without a Q2, the Presets tab still searches AutoEq's catalogue, and Response draws squig.link measurements.
-> App Transport Security: EQ Studio on the Q2 serves plain HTTP at the player's own address on the user's
-> network (a 192.168.x.x or Tailscale 100.x address, or a Tailscale name). `NSAllowsArbitraryLoads` lets the app
-> reach the address the user scans or types; it contacts no other HTTP host.
+## Beta App Review notes (App Store Connect → TestFlight → Test Information)
+> NO QR CODE NEEDED: on the first screen, tap "Try Without a Q2". Every tab opens without signing in: edit the
+> EQ (drag the dots or the curve), search Presets for any headphones and open one, and use Response to draw a
+> squig.link measurement and run AutoEQ. Only the Card tab and playing the EQ on the player need a Q2.
+>
+> EQ Studio for Q2 is a remote control for the Shanling Q2, a portable music player running the open-source Q2 Pod
+> firmware and its EQ Studio app (github.com/DiamondBond/q2-eq-studio). There is no account: the app pairs with the
+> player on the same network, or the user's own Tailscale, by scanning the QR code the Q2 shows on its own screen,
+> or with its PIN. A video of that flow with a real Q2 was sent in our reply to the review of build 1.
+>
+> App Transport Security: EQ Studio on the Q2 serves plain HTTP at the player's own address on the user's network
+> (a 192.168.x.x or Tailscale 100.x address, or a Tailscale name). `NSAllowsArbitraryLoads` lets the app reach the
+> address the user scans or types; it contacts no other HTTP host.
+>
+> The app is open source (GPL-3.0): github.com/js-surya/q2-eq-studio-ios. Not affiliated with Shanling.
+
+Build 0.1.0 (1) was rejected under guideline 2.1 ("we need a demo QR code"): the reviewer has no Q2. Build 3 added
+Try Without a Q2 for that, and the reply attached a video of the app with a real Q2. Keep Try Without a Q2 working:
+it's how every review gets past the first screen.
 
 ## Privacy
 - Privacy policy URL: https://github.com/js-surya/q2-eq-studio-ios/blob/main/docs/PRIVACY.md
