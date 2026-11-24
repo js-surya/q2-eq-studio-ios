@@ -33,6 +33,8 @@ struct RootView: View {
         return .eq
     }()
     @State private var showSignIn = false
+    /// The window wider than tall (or not an iPad).
+    @State private var sidebar = UIDevice.current.userInterfaceIdiom != .pad
 
     enum Tab: Hashable { case eq, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
@@ -43,23 +45,11 @@ struct RootView: View {
             if studio.link == nil && !studio.trying {
                 ConnectView()
             } else {
-                TabView(selection: $tab) {
-                    SwiftUI.Tab("EQ", systemImage: "slider.vertical.3", value: Tab.eq) {
-                        NavigationStack { EQView() }
-                    }
-                    SwiftUI.Tab("Response", systemImage: "waveform.path.ecg", value: Tab.response) {
-                        NavigationStack { ResponseView(goToEQ: { tab = .eq }) }
-                    }
-                    SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
-                        NavigationStack { CardView() }
-                    }
-                    // Presets in the bar's own slot at the right, which stays there as the bar collapses.
-                    SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.search, role: .search) {
-                        NavigationStack { SearchView(goToEQ: { tab = .eq }) }
-                    }
-
+                // A sidebar to open only on an iPad on its side: upright, the tabs stay a bar at the top,
+                // with no sidebar button. An iPhone keeps the system's layout.
+                Group {
+                    if sidebar { tabs.tabViewStyle(.sidebarAdaptable) } else { tabs.tabViewStyle(.tabBarOnly) }
                 }
-                .tabViewStyle(.sidebarAdaptable)
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
@@ -117,6 +107,7 @@ struct RootView: View {
                 }
             }
         }
+        .onGeometryChange(for: Bool.self) { UIDevice.current.userInterfaceIdiom != .pad || $0.size.width > $0.size.height } action: { sidebar = $0 }
         .overlay(alignment: .top) { ToastView() }
         .alert(studio.notice?.title ?? "", isPresented: Binding(get: { studio.notice != nil }, set: { if !$0 { studio.notice = nil } })) {
             Button("OK") {}
@@ -126,6 +117,26 @@ struct RootView: View {
         .preferredColorScheme(theme == "light" ? .light : theme == "dark" ? .dark : nil)
         .tint(studio.accent)
         .sensoryFeedback(trigger: studio.haptic) { _, event in event?.kind.feedback }
+    }
+
+    /// The four tabs; how they're shown is the body's to say.
+    private var tabs: some View {
+        TabView(selection: $tab) {
+            SwiftUI.Tab("EQ", systemImage: "slider.vertical.3", value: Tab.eq) {
+                NavigationStack { EQView() }
+            }
+            SwiftUI.Tab("Response", systemImage: "waveform.path.ecg", value: Tab.response) {
+                NavigationStack { ResponseView(goToEQ: { tab = .eq }) }
+            }
+            SwiftUI.Tab("Card", systemImage: "sdcard", value: Tab.card) {
+                NavigationStack { CardView() }
+            }
+            // Presets in the bar's own slot at the right, which stays there as the bar collapses.
+            SwiftUI.Tab("Presets", systemImage: "headphones", value: Tab.search, role: .search) {
+                NavigationStack { SearchView(goToEQ: { tab = .eq }) }
+            }
+
+        }
     }
 }
 
