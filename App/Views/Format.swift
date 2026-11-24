@@ -68,11 +68,13 @@ enum BandColor {
 
 /// What this device is: keys and a pointer are an iPad's, not a phone's.
 enum Device {
-    /// A mouse or trackpad, now: what Inspect's line follows without a touch. A finger reads the curve by
-    /// touching and holding, so without one Inspect has nothing to add.
-    @MainActor static var hasPointer: Bool { Peripherals.shared.mouse }
-    /// A keyboard or a mouse, now: what the Keyboard and Mouse sheet is about.
-    @MainActor static var hasKeyboard: Bool { Peripherals.shared.keyboard || Peripherals.shared.mouse }
+    /// An iPad with a mouse or trackpad, now: what Inspect's line follows without a touch. A finger reads the
+    /// curve by touching and holding, so without one Inspect has nothing to add. Never an iPhone, which can
+    /// report a pointer too (iPhone Mirroring from a Mac).
+    @MainActor static var hasPointer: Bool { isPad && Peripherals.shared.mouse }
+    /// An iPad with a keyboard or a mouse, now: what the Keyboard and Mouse sheet is about.
+    @MainActor static var hasKeyboard: Bool { isPad && (Peripherals.shared.keyboard || Peripherals.shared.mouse) }
+    @MainActor private static var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 }
 
 /// Which keyboards and mice are connected, kept up to date as they come and go, so the views showing
