@@ -102,8 +102,7 @@ The app collects no data: no analytics, tracking or ads, and no server of its ow
 
 - **EQ Studio on your Q2**, at the address you scan or type
 - **squig.link**, for the measurements and targets you pick
-- **GitHub**, for AutoEq's preset list while you try the app without a Q2, and for the profile pictures of the
-  three people in About (the developer, DiamondBond and tyleree)
+- **GitHub**, for AutoEq's preset list while you try the app without a Q2
 
 Details are in the [privacy policy](docs/PRIVACY.md).
 
