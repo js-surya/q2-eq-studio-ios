@@ -23,9 +23,14 @@ struct CardView: View {
                 Button("Save to the Card…", systemImage: "square.and.arrow.down") { askSave() }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(studio.link == nil)
+                // The same preset file, kept on this device or in iCloud Drive, with or without a Q2.
+                Button("Save to Files…", systemImage: "folder.badge.plus") { saveToFiles() }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
             } footer: {
                 if studio.live.local {
                     Text("This Q2 Pod can't take the EQ live. Save it here, then on the Q2 open the EQ page's Import from SD /EQ.")
+                } else {
+                    Text("Save to Files keeps the preset on this \(UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone") or in iCloud Drive; Open File brings it back.")
                 }
             }
 
@@ -136,6 +141,11 @@ struct CardView: View {
         } message: {
             Text(message ?? "")
         }
+    }
+
+    /// The preset file the card would get, through the Files app's save sheet.
+    private func saveToFiles() {
+        exportFile = ExportFile(data: Data(studio.text.utf8), name: fileName(studio.preset.name), type: .plainText, notes: "")
     }
 
     private func askSave() {
