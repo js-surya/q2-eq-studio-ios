@@ -25,22 +25,25 @@ struct EQView: View {
             if let fold = Self.fold(geo), fold.height > fold.width {
                 HStack(spacing: 0) {
                     // Half the width: the band's card as an iPhone's (menus, a row a value)
-                    header(fill: true).frame(width: fold.minX).environment(\.horizontalSizeClass, .compact)
+                    header(fill: true, room: 76).frame(width: fold.minX).clipped().environment(\.horizontalSizeClass, .compact)
                     Color.clear.frame(width: fold.width)
                     list(table: false) // half the width: rows, not the table
                 }
                 .background(Color.groupedBackground)
             } else if let fold = Self.fold(geo) {
                 VStack(spacing: 0) {
-                    header(fill: true).frame(height: fold.minY)
+                    // Above the fold the graph and its tools, the graph its whole height; under it the
+                    // band's card (an iPhone's) over the bands
+                    header(fill: true, card: false).frame(height: fold.minY).clipped()
                     Color.clear.frame(height: fold.height)
-                    list(table: width == .regular)
+                    BandStrip().padding(.horizontal, 12).padding(.top, 8).environment(\.horizontalSizeClass, .compact)
+                    list(table: geo.size.width >= Self.tableWidth)
                 }
                 .background(Color.groupedBackground)
             } else {
                 VStack(spacing: 0) {
                     header()
-                    list(table: width == .regular)
+                    list(table: width == .regular && geo.size.width >= Self.tableWidth)
                 }
             }
         }
@@ -58,8 +61,10 @@ struct EQView: View {
 
     /// The graph pinned above the list: it stays in view while the bands scroll, and a pull on the list moves
     /// the list alone.
-    /// fill: a pane of its own beside the fold, where the graph takes the height the rest leaves.
-    private func header(fill: Bool = false) -> some View {
+    /// fill: a pane of its own by the fold, where the graph takes the height the rest leaves; room: what it
+    /// leaves at its foot (the live status floats over a pane beside the fold).
+    /// card: the picked band's card under the tools (else it goes under the fold, over the bands).
+    private func header(fill: Bool = false, room: CGFloat = 8, card: Bool = true) -> some View {
         VStack(spacing: 6) {
             if !studio.outline.name.isEmpty {
                 HStack(spacing: 6) {
@@ -71,15 +76,15 @@ struct EQView: View {
                 .accessibilityLabel("Playing \(studio.outline.name)")
             }
             GraphView()
-                .frame(minHeight: fill ? 220 : graphHeight, maxHeight: fill ? .infinity : graphHeight)
+                .frame(minHeight: fill ? 140 : graphHeight, maxHeight: fill ? .infinity : graphHeight)
             if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
             ToolStrip()
             // The picked band under the graph, on an iPhone as on an iPad.
-            BandStrip().padding(.horizontal, width == .regular ? 8 : 0).padding(.top, 4)
+            if card { BandStrip().padding(.horizontal, width == .regular ? 8 : 0).padding(.top, 4) }
             if fill { Spacer(minLength: 0) } // only past the graph's least height
         }
         .padding(.horizontal, 12)
-        .padding(.bottom, fill ? 76 : 8) // a pane of its own: clear of the live status under it
+        .padding(.bottom, room)
         .background(Color.groupedBackground)
     }
 
@@ -148,6 +153,9 @@ struct EQView: View {
     // Room under the last row, so it scrolls clear of the tab bar and the live status.
     .contentMargins(.bottom, 120, for: .scrollContent)
     }
+
+    /// The least width the bands' table fits in (its columns at their least, the list's insets); narrower, rows.
+    static let tableWidth: CGFloat = 720
 
     /// Where a fold crosses this view, when it does (iPhone Duo's inner display, iOS 27.1): a division well
     /// inside it, never one at an edge.
