@@ -137,7 +137,7 @@ private struct NumberField: View {
 }
 
 /// Typed in place: 1.2k is 1200, as EQ Studio's table reads it.
-private struct TypedNumber: View {
+struct TypedNumber: View {
     let value: Double
     let range: ClosedRange<Double>
     let digits: Int

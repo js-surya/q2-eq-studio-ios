@@ -9,6 +9,13 @@ struct EQView: View {
     @AppStorage("eq.fold.bands") private var showBands = true
     @AppStorage("eq.fold.knobs") private var showKnobs = true
     @State private var note: String?
+    @State private var height: CGFloat = 0
+
+    /// 320 on an iPad, less when the window is short; 230 on an iPhone.
+    private var graphHeight: CGFloat {
+        guard width == .regular else { return 230 }
+        return height > 0 ? min(320, max(200, height * 0.32)) : 320
+    }
 
     var body: some View {
         @Bindable var studio = studio
@@ -26,9 +33,11 @@ struct EQView: View {
                     .accessibilityLabel("Playing \(studio.outline.name)")
                 }
                 GraphView()
-                    .frame(height: width == .regular ? 320 : 230)
+                    .frame(height: graphHeight)
                 if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
                 ToolStrip()
+                // Where there's room, the picked band under the graph, either way up; an iPhone's is a sheet.
+                if width == .regular { BandStrip().padding(.horizontal, 8).padding(.top, 4) }
             }
             .padding(.horizontal, 12)
             .padding(.bottom, 8)
@@ -93,10 +102,12 @@ struct EQView: View {
         // Room under the last row, so it scrolls clear of the tab bar and the live status.
         .contentMargins(.bottom, 120, for: .scrollContent)
         }
+        // The graph gives way on a short window (an iPad mini on its side), so the bands keep room.
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .navigationTitle("EQ Studio")
         .settingsButton()
         .toolbar { EQToolbar() }
-        .inspector(isPresented: Binding(get: { studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
+        .inspector(isPresented: Binding(get: { width == .compact && studio.selected != nil }, set: { if !$0 { studio.selected = nil } })) {
             BandEditor()
                 .inspectorColumnWidth(min: 300, ideal: 340, max: 420)
                 .presentationDetents([.medium, .large])
@@ -301,7 +312,7 @@ private struct EQToolbar: ToolbarContent {
 
 // MARK: The bands as a table, as the page's computer layout has them
 
-private enum Column { static let num: CGFloat = 30, on: CGFloat = 44, type: CGFloat = 130, side: CGFloat = 120, value: CGFloat = 92 }
+private enum Column { static let num: CGFloat = 30, on: CGFloat = 44, type: CGFloat = 130, side: CGFloat = 120, value: CGFloat = 92, valueMax: CGFloat = 170, knob: CGFloat = 56 }
 
 private struct BandTableHeader: View {
     var body: some View {
@@ -310,10 +321,11 @@ private struct BandTableHeader: View {
             Text("On").frame(width: Column.on)
             Text("Type").frame(width: Column.type, alignment: .leading)
             Text("Side").frame(width: Column.side, alignment: .leading)
-            Text("Hz").frame(width: Column.value, alignment: .trailing)
-            Text("dB").frame(width: Column.value, alignment: .trailing)
-            Text("Q").frame(width: Column.value, alignment: .trailing)
-            Spacer(minLength: 0)
+            // The values share what's left of the width, so the table reaches the edge.
+            Text("Hz").frame(minWidth: Column.value, maxWidth: Column.valueMax, alignment: .trailing)
+            Text("dB").frame(minWidth: Column.value, maxWidth: Column.valueMax, alignment: .trailing)
+            Text("Q").frame(minWidth: Column.value, maxWidth: Column.valueMax, alignment: .trailing)
+            Color.clear.frame(width: Column.knob, height: 1)
         }
         .font(.caption.weight(.semibold))
         .foregroundStyle(.secondary)
@@ -354,8 +366,8 @@ private struct BandTableRow: View {
             Cell(value: band.q, digits: 2, range: EQ.qMin...EQ.qMax, step: { v, up, fine in v * pow(2, (up ? 1 : -1) / (fine ? 24 : 6)) },
                  set: { v in set("q") { $0.q = (v * 1000).rounded() / 1000 } }, row: index, column: 2)
                 .disabled(knob != nil)
-            if let knob { Text(knob.title).font(.caption.weight(.semibold)).foregroundStyle(.tint) }
-            Spacer(minLength: 0)
+            Text(knob?.title ?? "").font(.caption.weight(.semibold)).foregroundStyle(.tint)
+                .frame(width: Column.knob, alignment: .leading)
         }
         .opacity(band.on ? 1 : 0.6)
     }
@@ -389,7 +401,7 @@ private struct Cell: View {
             .multilineTextAlignment(.trailing)
             .monospacedDigit()
             .textFieldStyle(.roundedBorder)
-            .frame(width: Column.value)
+            .frame(minWidth: Column.value, maxWidth: Column.valueMax)
             .focused($focus, equals: CellFocus(row: row, column: column))
             .onAppear { text = shown }
             .onChange(of: value) { if focus == nil { text = shown } }
