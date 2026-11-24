@@ -169,6 +169,10 @@ struct ResponseView: View {
     private func openSearch() {
         guard studio.responseSearchAsked != nil else { return }
         studio.responseSearchAsked = nil
+        // An iPhone's field is under the title, waiting: there the tab opens typing. An iPad's is in the bar,
+        // where taking it at once lost it straight away to the keys' focus, closing it again: there it waits
+        // for a tap or /.
+        guard width == .compact else { return }
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(150)) // the search field is in place a moment after the tab
             searchFocus = true
