@@ -121,17 +121,128 @@ final class Response {
         return s.kind == "5128" ? "earphones" : s.kind == "IEMs" ? "in-ears" : s.kind.lowercased()
     }
 
-    /// A search wants every word, in any order, in the name; the names where the first word comes earliest first.
+    /// A search wants every word, in any order, in the name, dashes, spaces and capitals aside ("wf1000xm4"
+    /// finds "WF-1000XM4"); the names where the first word comes earliest first.
     func found(_ search: String) -> [Squig.Phone] {
         guard let s = currentSite, let phones = books[s.id] else { return [] }
-        let words = search.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
-        let hits = phones.filter { p in words.allSatisfy { p.find.contains($0) } }
-        guard let first = words.first else { return hits }
-        let at = { (p: Squig.Phone) in p.find.range(of: first).map { p.find.distance(from: p.find.startIndex, to: $0.lowerBound) } ?? 0 }
-        return hits.enumerated().sorted { a, b in
-            let (x, y) = (at(a.element), at(b.element))
-            return x == y ? a.offset < b.offset : x < y
-        }.map(\.element)
+        let words = Self.words(search)
+        guard let first = words.first else { return phones }
+        let keys = keyed(s.id)
+        var hits: [(phone: Squig.Phone, at: Int, order: Int)] = []
+        for (k, key) in keys.enumerated() where words.allSatisfy({ key.contains($0) }) {
+            let at = key.range(of: first).map { key.distance(from: key.startIndex, to: $0.lowerBound) } ?? 0
+            hits.append((phones[k], at, k))
+        }
+        return hits.sorted { $0.at == $1.at ? $0.order < $1.order : $0.at < $1.at }.map(\.phone)
+    }
+
+    // MARK: Every reviewer's list, for a search across them all
+
+    /// Every list read (or being read), so "Measured by" can narrow to the reviewers who have a match.
+    private(set) var everyLoaded = false
+    private(set) var everyLoading = false
+    /// Each list's names squashed for matching, worked out once.
+    @ObservationIgnored private var keys: [String: [String]] = [:]
+    @ObservationIgnored private var memo: (search: String, lists: Int, counts: [String: Int])?
+    private static let listsFile = URL.cachesDirectory.appending(path: "squig-lists.json")
+    private static let listsKeep: TimeInterval = 24 * 3600
+
+    /// Lowercased, letters and digits only.
+    static func squash(_ s: String) -> String {
+        String(String.UnicodeScalarView(s.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }))
+    }
+
+    static func words(_ search: String) -> [String] {
+        search.split(whereSeparator: \.isWhitespace).map { squash(String($0)) }.filter { !$0.isEmpty }
+    }
+
+    private func keyed(_ id: String) -> [String] {
+        if let k = keys[id], k.count == books[id]?.count { return k }
+        let k = (books[id] ?? []).map { Self.squash($0.name) }
+        keys[id] = k
+        return k
+    }
+
+    /// How many of each reviewer's measurements match, for the reviewers with one at least.
+    func reviewers(matching search: String) -> [String: Int] {
+        let words = Self.words(search)
+        guard !words.isEmpty else { return [:] }
+        if let m = memo, m.search == search, m.lists == books.count { return m.counts }
+        var counts: [String: Int] = [:]
+        for id in books.keys {
+            let n = keyed(id).reduce(0) { n, key in words.allSatisfy { key.contains($0) } ? n + 1 : n }
+            if n > 0 { counts[id] = n }
+        }
+        memo = (search, books.count, counts)
+        return counts
+    }
+
+    /// Every reviewer's list: kept on this device a day, else read from squig.link ten at a time (about
+    /// 0.6 MB in all). A list that fails is left out.
+    func loadEvery() async {
+        guard !everyLoaded, !everyLoading else { return }
+        // The reviewers first: waited for when the tab's own load is reading them.
+        while sites == nil {
+            if loading { try? await Task.sleep(for: .milliseconds(100)) } else { await load(); if sites == nil { return } }
+            if Task.isCancelled { return }
+        }
+        guard let sites else { return }
+        everyLoading = true
+        defer { everyLoading = false }
+        readLists()
+        let missing = sites.filter { books[$0.id] == nil }
+        if !missing.isEmpty {
+            await withTaskGroup(of: (String, [Squig.Phone]?).self) { group in
+                var next = 0, inFlight = 0
+                while next < missing.count || inFlight > 0 {
+                    while inFlight < 10 && next < missing.count { // ten at a time
+                        let id = missing[next].id, base = missing[next].base
+                        next += 1
+                        inFlight += 1
+                        group.addTask { (id, await Response.list(base)) }
+                    }
+                    guard let (id, phones) = await group.next() else { break }
+                    inFlight -= 1
+                    if let phones, books[id] == nil { books[id] = phones }
+                }
+            }
+            writeLists()
+        }
+        everyLoaded = true
+    }
+
+    /// One reviewer's list, off the main thread, as text() reads files: no cookies, a time limit, 4 MB at most.
+    nonisolated private static func list(_ base: String) async -> [Squig.Phone]? {
+        guard let url = URL(string: Squig.bookURL(base)),
+              let (data, response) = try? await listSession.data(from: url),
+              (response as? HTTPURLResponse)?.statusCode == 200, data.count <= 4 << 20,
+              let v = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) else { return nil }
+        return Squig.phones(v)
+    }
+
+    nonisolated private static let listSession: URLSession = {
+        let c = URLSessionConfiguration.ephemeral
+        c.httpCookieStorage = nil
+        c.httpShouldSetCookies = false
+        c.timeoutIntervalForRequest = 20
+        c.urlCache = nil
+        return URLSession(configuration: c)
+    }()
+
+    private func readLists() {
+        guard let d = try? Data(contentsOf: Self.listsFile),
+              let kept = try? JSONSerialization.jsonObject(with: d) as? [String: Any],
+              let saved = kept["saved"] as? Double, Date().timeIntervalSince1970 - saved < Self.listsKeep,
+              let lists = kept["lists"] as? [String: [[String]]] else { return }
+        for (id, rows) in lists where books[id] == nil {
+            books[id] = rows.compactMap { $0.count == 2 ? Squig.Phone(name: $0[0], file: $0[1], find: $0[0].lowercased()) : nil }
+        }
+    }
+
+    private func writeLists() {
+        let lists = books.mapValues { $0.map { [$0.name, $0.file] } }
+        let kept: [String: Any] = ["saved": Date().timeIntervalSince1970, "lists": lists]
+        if let d = try? JSONSerialization.data(withJSONObject: kept) { try? d.write(to: Self.listsFile, options: .atomic) }
     }
 
     /// A measurement's sides, averaged, from wherever its site keeps them: the layout found last time there

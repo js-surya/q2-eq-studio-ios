@@ -9,6 +9,8 @@ struct ResponseView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.horizontalSizeClass) private var width
     @State private var search = ""
+    /// The reviewer the search moved away from, having no match, for the note under the pickers.
+    @State private var movedFrom: String?
     @FocusState private var searchFocus: Bool
     var goToEQ: () -> Void = {}
 
@@ -19,6 +21,10 @@ struct ResponseView: View {
         let site = r.currentSite
         let phones = site.flatMap { r.books[$0.id] }
         let found = r.found(search)
+        let query = search.trimmingCharacters(in: .whitespaces)
+        // While searching, once every list is read: only the reviewers with a match, and how many.
+        let counts = query.isEmpty ? [:] : r.reviewers(matching: query)
+        let narrowing = !query.isEmpty && r.everyLoaded
         List {
             if width == .regular {
                 Section {
@@ -29,12 +35,16 @@ struct ResponseView: View {
                 }
             }
             Section {
-                Picker("Measured by", selection: Binding(get: { site?.id ?? r.site }, set: { r.site = $0 })) {
+                Picker("Measured by", selection: Binding(get: { site?.id ?? r.site }, set: { r.site = $0; movedFrom = nil })) {
                     if let sites = r.sites {
                         ForEach(Squig.kinds, id: \.kind) { kind in
-                            let group = sites.filter { $0.kind == kind.kind }
+                            let group = sites.filter { $0.kind == kind.kind && (!narrowing || counts[$0.id] != nil || $0.id == site?.id) }
                             if !group.isEmpty {
-                                Section(kind.title) { ForEach(group) { Text($0.name).tag($0.id) } }
+                                Section(kind.title) {
+                                    ForEach(group) { s in
+                                        Text(narrowing ? "\(s.name) · \(counts[s.id] ?? 0)" : s.name).tag(s.id)
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -51,7 +61,7 @@ struct ResponseView: View {
                     }
                 }
             } footer: {
-                Text(note(r, site, phones, found))
+                Text(note(r, site, phones, found, counts: narrowing ? counts : nil))
             }
             if r.error != nil && r.error?.status != 404 {
                 Button("Try Again", systemImage: "arrow.clockwise") { Task { await r.load() } }
@@ -88,21 +98,49 @@ struct ResponseView: View {
         .searchFocused($searchFocus) // after .searchable, so it reaches the field
         .task { await r.load() }
         .refreshable { await r.load() }
+        // A search reads every reviewer's list (once a day), to narrow "Measured by" to those with a match.
+        .task(id: query.isEmpty) { if !query.isEmpty { await r.loadEvery() } }
+        .onChange(of: counts) { follow(counts) }
+        .onChange(of: query.isEmpty) { if query.isEmpty { movedFrom = nil } }
     }
 
-    private func note(_ r: Response, _ site: Squig.Site?, _ phones: [Squig.Phone]?, _ found: [Squig.Phone]) -> String {
+    private func note(_ r: Response, _ site: Squig.Site?, _ phones: [Squig.Phone]?, _ found: [Squig.Phone],
+                      counts: [String: Int]?) -> String {
         if !r.fetching.isEmpty { return "Loading \(r.fetching)…" }
         if let e = r.error?.errorDescription { return e }
         guard let site, let phones else {
             return site.map { "Loading \($0.name)'s list from squig.link…" } ?? "Loading the reviewers from squig.link…"
         }
         if !search.trimmingCharacters(in: .whitespaces).isEmpty {
-            if found.isEmpty { return "No match. Try fewer words, or another reviewer." }
-            if found.count > Self.rows { return "The first \(Self.rows) of \(found.count.formatted()) matches. Add a word to narrow it." }
-            return "\(found.count.formatted()) \(found.count == 1 ? "match" : "matches")."
+            var lead = ""
+            if r.everyLoading {
+                lead = "Searching every reviewer… "
+            } else if let counts {
+                let n = counts.count
+                lead = n == 0 ? "No reviewer has measured a match. Try fewer words. "
+                    : "\(n) \(n == 1 ? "reviewer has" : "reviewers have") measured a match; Measured by lists just \(n == 1 ? "that one" : "those"). "
+                if let movedFrom { lead += "\(movedFrom) hasn't measured it, so this is \(site.name)'s. " }
+            }
+            if found.isEmpty { return lead + (counts == nil ? "No match. Try fewer words, or another reviewer." : "") }
+            if found.count > Self.rows { return lead + "The first \(Self.rows) of \(found.count.formatted()) matches. Add a word to narrow it." }
+            return lead + "\(found.count.formatted()) \(found.count == 1 ? "match" : "matches") here."
         }
         return "\(site.name) measured \(phones.count.formatted()) \(r.kindWord)\(phones.count > Self.rows ? ", the first \(Self.rows) shown; search for the rest" : ""). "
             + "Pick one to see it under your EQ. The measurement and the target are only drawn: the Q2 plays the EQ, and neither is saved or sent to it."
+    }
+
+    /// The picked reviewer has no match but others do: the one of the same kind (in-ears, headphones…)
+    /// with the most, else the one with the most.
+    private func follow(_ counts: [String: Int]) {
+        let r = studio.response
+        guard !counts.isEmpty, let sites = r.sites, let now = r.currentSite, counts[now.id] == nil else { return }
+        let best = sites.filter { counts[$0.id] != nil }.max { a, b in
+            let (x, y) = (a.kind == now.kind, b.kind == now.kind)
+            return x != y ? !x : counts[a.id]! < counts[b.id]!
+        }
+        guard let best else { return }
+        movedFrom = movedFrom ?? now.name
+        r.site = best.id
     }
 
     /// The latest pick wins; a phone shows the graph on the EQ tab, so it goes there.
