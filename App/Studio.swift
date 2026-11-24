@@ -62,6 +62,7 @@ final class Studio {
     var pasteAsked = false // the EQ tab's menu: the Paste sheet
     var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
     var searchAsked: UUID? // / asked for the presets' search
+    var responseSearchAsked: UUID? // the Response tab opened: its search takes the keyboard
     var cellFocus: CellFocus? // the band table's cell Return moved to
 
     /// The app's accent, kept between launches; the graph keeps EQ Studio's own colours whatever it is.

@@ -78,13 +78,14 @@ struct ResponseView: View {
         }
         .navigationTitle("Response")
         .settingsButton()
-        .searchFocused($searchFocus)
         .onChange(of: studio.searchAsked) { takeSearch() }
-        .onAppear { takeSearch() }
+        .onChange(of: studio.responseSearchAsked) { openSearch() }
+        .onAppear { takeSearch(); openSearch() }
         // On an iPhone the field stays under the title, not hidden until the list is pulled down; an iPad's
         // is in the bar, in sight already.
         .searchable(text: $search, placement: width == .compact ? .navigationBarDrawer(displayMode: .always) : .automatic,
                     prompt: phones.map { "Search \($0.count.formatted()) \(r.kindWord)" } ?? "Search")
+        .searchFocused($searchFocus) // after .searchable, so it reaches the field
         .task { await r.load() }
         .refreshable { await r.load() }
     }
@@ -119,6 +120,16 @@ struct ResponseView: View {
             } catch {
                 studio.tell("\(phone.name) couldn't be loaded", error.localizedDescription)
             }
+        }
+    }
+
+    /// The tab opened: the cursor in the search, the keyboard up, as on Presets.
+    private func openSearch() {
+        guard studio.responseSearchAsked != nil else { return }
+        studio.responseSearchAsked = nil
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(150)) // the search field is in place a moment after the tab
+            searchFocus = true
         }
     }
 

@@ -78,8 +78,15 @@ struct RootView: View {
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 // Presets opens with the cursor in its search box.
-                .onChange(of: tab) { if tab == .search { studio.searchAsked = UUID() } }
-                .onAppear { if tab == .search { studio.searchAsked = UUID() } }
+                .onChange(of: tab) {
+                    if tab == .search { studio.searchAsked = UUID() }
+                    // Response opens ready to type, as Presets does.
+                    if tab == .response { studio.responseSearchAsked = UUID() }
+                }
+                .onAppear {
+                    if tab == .search { studio.searchAsked = UUID() }
+                    if tab == .response { studio.responseSearchAsked = UUID() }
+                }
                 #if DEBUG
                 .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
                 .task { if ProcessInfo.processInfo.environment["EQS_TOAST"] != nil { try? await Task.sleep(for: .seconds(2)); studio.say("“Meze Alba” is playing.", undo: true) } }
