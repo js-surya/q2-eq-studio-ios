@@ -159,6 +159,7 @@ struct AboutView: View {
 
             Section {
                 Link("GNU General Public License v3.0", destination: URL(string: "https://www.gnu.org/licenses/gpl-3.0.html")!)
+                Link("Source Code", destination: URL(string: "https://github.com/js-surya/q2-eq-studio-ios")!)
             } header: {
                 Text("Licence")
             } footer: {
