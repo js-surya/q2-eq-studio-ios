@@ -43,8 +43,9 @@ targets:
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: EQ Studio talks to the EQ Studio app on your Q2 over your Wi-Fi.
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
-        # An iPhone stays upright; an iPad turns every way.
-        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        # Every way, narrowed at runtime (EQStudioApp.swift Orientations): an iPhone stays upright, an
+        # iPhone Duo's inner display and an iPad turn.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortraitUpsideDown
     info:
       path: App/Info.plist

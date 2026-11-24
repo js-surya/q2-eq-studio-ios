@@ -6,6 +6,7 @@ import SwiftUI
 
 @main
 struct EQStudioApp: App {
+    @UIApplicationDelegateAdaptor(Orientations.self) private var orientations
     @State private var studio = Studio()
 
     var body: some Scene {
@@ -115,6 +116,12 @@ struct RootView: View {
             }
         }
         .onGeometryChange(for: Bool.self) { UIDevice.current.userInterfaceIdiom != .pad || $0.size.width > $0.size.height } action: { sidebar = $0 }
+        // An iPhone Duo folding or unfolding changes the screen: ask its orientations again (Orientations).
+        .onGeometryChange(for: Bool.self) { Orientations.large($0.size) } action: { _ in
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            }
+        }
         .overlay(alignment: .top) { ToastView() }
         .alert(studio.notice?.title ?? "", isPresented: Binding(get: { studio.notice != nil }, set: { if !$0 { studio.notice = nil } })) {
             Button("OK") {}
@@ -283,3 +290,16 @@ struct ThemePicker: View {
     }
 }
 
+/// An iPhone stays upright; an iPad, and an iPhone Duo's inner display, turn every way. The Info.plist
+/// allows every way on both (an iPhone Duo is an iPhone to it, folded or not), and this narrows a phone-sized
+/// screen to portrait, asked again as the Duo folds or unfolds (RootView, on a size change).
+final class Orientations: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        guard UIDevice.current.userInterfaceIdiom == .phone, let screen = window?.windowScene?.screen.bounds else { return .all }
+        return Self.large(screen.size) ? .allButUpsideDown : .portrait
+    }
+
+    /// A screen too big to be a phone's in the hand: an unfolded iPhone Duo (669 x 951 points); the largest
+    /// iPhone is 440 wide.
+    static func large(_ size: CGSize) -> Bool { min(size.width, size.height) >= 600 }
+}

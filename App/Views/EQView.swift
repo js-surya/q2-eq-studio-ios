@@ -18,91 +18,31 @@ struct EQView: View {
     }
 
     var body: some View {
-        @Bindable var studio = studio
-        VStack(spacing: 0) {
-            // The graph pinned above the list: it stays in view while the bands scroll, and a pull on the
-            // list moves the list alone.
-            VStack(spacing: 6) {
-                if !studio.outline.name.isEmpty {
-                    HStack(spacing: 6) {
-                        Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
-                        Marquee(text: studio.outline.name)
-                    }
-                    .padding(.horizontal, 8)
-                    .accessibilityElement(children: .combine)
-                    .accessibilityLabel("Playing \(studio.outline.name)")
+        GeometryReader { geo in
+            // An iPhone Duo's inner display: nothing that takes a touch on the fold, as Apple's guidelines ask.
+            // A fold top to bottom splits the tab in two, the graph and its band on one side, the bands on
+            // the other; one across puts the graph above it and the bands below. Elsewhere, one column.
+            if let fold = Self.fold(geo), fold.height > fold.width {
+                HStack(spacing: 0) {
+                    // Half the width: the band's card as an iPhone's (menus, a row a value)
+                    header(fill: true).frame(width: fold.minX).environment(\.horizontalSizeClass, .compact)
+                    Color.clear.frame(width: fold.width)
+                    list(table: false) // half the width: rows, not the table
                 }
-                GraphView()
-                    .frame(height: graphHeight)
-                if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
-                ToolStrip()
-                // The picked band under the graph, on an iPhone as on an iPad.
-                BandStrip().padding(.horizontal, width == .regular ? 8 : 0).padding(.top, 4)
-            }
-            .padding(.horizontal, 12)
-            .padding(.bottom, 8)
-            .background(Color.groupedBackground)
-        List(selection: $studio.selected) {
-            Section {
-              if showBands {
-                if width == .regular {
-                    BandTableHeader().selectionDisabled()
+                .background(Color.groupedBackground)
+            } else if let fold = Self.fold(geo) {
+                VStack(spacing: 0) {
+                    header(fill: true).frame(height: fold.minY)
+                    Color.clear.frame(height: fold.height)
+                    list(table: width == .regular)
                 }
-                BandRows(table: width == .regular)
-
-                Button("Add Band", systemImage: "plus.circle.fill") { studio.addBand() }
-                    .disabled(studio.outline.bandCount >= EQ.maxBands)
-                    .selectionDisabled()
-              }
-            } header: {
-                Fold(title: "Bands", open: $showBands) {
-                    Text("\(studio.outline.bandCount) of \(EQ.maxBands)").monospacedDigit()
-                }
-            } footer: {
-                if showBands {
-                    Text(studio.graphEdit
-                         ? "Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve."
-                         : "The graph is locked, so a touch there won't move the curve: tap its pencil to drag, pinch and double-tap there. Touch and hold to read it.")
+                .background(Color.groupedBackground)
+            } else {
+                VStack(spacing: 0) {
+                    header()
+                    list(table: width == .regular)
                 }
             }
-
-            Section {
-                if showKnobs {
-                    ForEach(Knob.allCases, id: \.self) { knob in
-                        KnobRow(knob: knob, note: $note)
-                    }
-                    .selectionDisabled()
-                }
-            } header: {
-                Fold(title: "Bass and Treble", open: $showKnobs) {
-                    let b = studio.outline.bass, t = studio.outline.treble
-                    if !showKnobs && (b != 0 || t != 0) {
-                        Text("\(Format.dB(b, digits: 1)) · \(Format.dB(t, digits: 1))").monospacedDigit()
-                    }
-                }
-            } footer: {
-                if showKnobs {
-                    Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
-                }
-            }
-
-            PreampSection()
-
-            let warnings = studio.warnings
-            if !warnings.isEmpty {
-                Section {
-                    ForEach(warnings, id: \.self) { w in
-                        Label(w, systemImage: "exclamationmark.triangle.fill")
-                            .symbolRenderingMode(.multicolor)
-                            .font(.subheadline)
-                    }
-                }
-                .selectionDisabled()
-            }
-        }
-        .groupedList()
-        // Room under the last row, so it scrolls clear of the tab bar and the live status.
-        .contentMargins(.bottom, 120, for: .scrollContent)
         }
         // The graph gives way on a short window (an iPad mini on its side), so the bands keep room.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
@@ -114,6 +54,111 @@ struct EQView: View {
         } message: {
             Text(note ?? "")
         }
+    }
+
+    /// The graph pinned above the list: it stays in view while the bands scroll, and a pull on the list moves
+    /// the list alone.
+    /// fill: a pane of its own beside the fold, where the graph takes the height the rest leaves.
+    private func header(fill: Bool = false) -> some View {
+        VStack(spacing: 6) {
+            if !studio.outline.name.isEmpty {
+                HStack(spacing: 6) {
+                    Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
+                    Marquee(text: studio.outline.name)
+                }
+                .padding(.horizontal, 8)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Playing \(studio.outline.name)")
+            }
+            GraphView()
+                .frame(minHeight: fill ? 220 : graphHeight, maxHeight: fill ? .infinity : graphHeight)
+            if studio.response.shown != nil { ShownBar().padding(.horizontal, 12) }
+            ToolStrip()
+            // The picked band under the graph, on an iPhone as on an iPad.
+            BandStrip().padding(.horizontal, width == .regular ? 8 : 0).padding(.top, 4)
+            if fill { Spacer(minLength: 0) } // only past the graph's least height
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, fill ? 76 : 8) // a pane of its own: clear of the live status under it
+        .background(Color.groupedBackground)
+    }
+
+    /// The bands and the rest; a table where it's wide enough, rows in a narrow pane.
+    private func list(table: Bool) -> some View {
+        @Bindable var studio = studio
+        return List(selection: $studio.selected) {
+        Section {
+          if showBands {
+            if table {
+                BandTableHeader().selectionDisabled()
+            }
+            BandRows(table: table)
+
+            Button("Add Band", systemImage: "plus.circle.fill") { studio.addBand() }
+                .disabled(studio.outline.bandCount >= EQ.maxBands)
+                .selectionDisabled()
+          }
+        } header: {
+            Fold(title: "Bands", open: $showBands) {
+                Text("\(studio.outline.bandCount) of \(EQ.maxBands)").monospacedDigit()
+            }
+        } footer: {
+            if showBands {
+                Text(studio.graphEdit
+                     ? "Drag a dot or the curve to move a band. Pinch to change the picked band's width. Double-tap to add a band. Touch and hold to read the curve."
+                     : "The graph is locked, so a touch there won't move the curve: tap its pencil to drag, pinch and double-tap there. Touch and hold to read it.")
+            }
+        }
+
+        Section {
+            if showKnobs {
+                ForEach(Knob.allCases, id: \.self) { knob in
+                    KnobRow(knob: knob, note: $note)
+                }
+                .selectionDisabled()
+            }
+        } header: {
+            Fold(title: "Bass and Treble", open: $showKnobs) {
+                let b = studio.outline.bass, t = studio.outline.treble
+                if !showKnobs && (b != 0 || t != 0) {
+                    Text("\(Format.dB(b, digits: 1)) · \(Format.dB(t, digits: 1))").monospacedDigit()
+                }
+            }
+        } footer: {
+            if showKnobs {
+                Text("As Poweramp's knobs: a low shelf at 90 Hz, Q 0.8, and a high shelf at 10 kHz, Q 0.6, each a band of its own.")
+            }
+        }
+
+        PreampSection()
+
+        let warnings = studio.warnings
+        if !warnings.isEmpty {
+            Section {
+                ForEach(warnings, id: \.self) { w in
+                    Label(w, systemImage: "exclamationmark.triangle.fill")
+                        .symbolRenderingMode(.multicolor)
+                        .font(.subheadline)
+                }
+            }
+            .selectionDisabled()
+        }
+    }
+    .groupedList()
+    // Room under the last row, so it scrolls clear of the tab bar and the live status.
+    .contentMargins(.bottom, 120, for: .scrollContent)
+    }
+
+    /// Where a fold crosses this view, when it does (iPhone Duo's inner display, iOS 27.1): a division well
+    /// inside it, never one at an edge.
+    private static func fold(_ g: GeometryProxy) -> CGRect? {
+        if #available(iOS 27.1, *) {
+            let size = g.size
+            return g.reservedRegions(kind: .division, options: .includeInactive).map(\.frame).first { f in
+                f.height > f.width ? f.minX > 140 && f.maxX < size.width - 140 : f.minY > 200 && f.maxY < size.height - 200
+            }
+        }
+        return nil
     }
 }
 
