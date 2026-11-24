@@ -162,7 +162,7 @@ struct AboutView: View {
             } header: {
                 Text("Licence")
             } footer: {
-                Text("EQ Studio for Apple devices is free software under the GPL-3.0, as EQ Studio is. Not affiliated with Shanling.")
+                Text("EQ Studio for iPhone and iPad is free software under the GPL-3.0, as EQ Studio is. Not affiliated with Shanling.")
             }
         }
         .formStyle(.grouped)

@@ -7,18 +7,16 @@ import SwiftUI
 struct SearchView: View {
     @Environment(Studio.self) private var studio
     @Environment(\.horizontalSizeClass) private var width
-    @State private var query = ""
     @State private var kind: String?
     @State private var picked: String?
     @State private var recents: [Recent] = Recent.load()
-    @FocusState private var searchFocus: Bool
     @State private var shownEntry: Catalogue.Entry? // debug: EQS_PRESET opens a preset's page
     var goToEQ: () -> Void = {}
 
     private static let rows = 25
 
     var body: some View {
-        let words = query.trimmingCharacters(in: .whitespaces)
+        let words = studio.presetQuery.trimmingCharacters(in: .whitespaces)
         let browsing = words.isEmpty && kind != nil
         let presets = words.isEmpty ? (browsing ? Array((studio.catalogue?.search("", type: kind, limit: Self.rows * 2) ?? []).prefix(Self.rows * 2)) : [])
             : studio.catalogue?.search(words, type: kind, limit: Self.rows) ?? []
@@ -125,30 +123,13 @@ struct SearchView: View {
                                 preset: entry.id))
             }
         }
-        .searchable(text: $query, prompt: "Headphones and IEMs")
-        .searchFocused($searchFocus)
-        .onChange(of: studio.searchAsked) { takeSearch() }
-        .onAppear { takeSearch() }
         .refreshable { await studio.loadCatalogue() }
         #if DEBUG
-        .onAppear { if let q = ProcessInfo.processInfo.environment["EQS_QUERY"] { query = q } } // for screenshots
+        .onAppear { if let q = ProcessInfo.processInfo.environment["EQS_QUERY"] { studio.presetQuery = q } } // for screenshots
         #endif
         .task {
             if studio.catalogue == nil { await studio.loadCatalogue() }
             if r.sites == nil { await r.load() }
-        }
-    }
-
-    /// / asked for the search: focused once this tab is on screen.
-    private func takeSearch() {
-        guard studio.searchAsked != nil else { return }
-        #if DEBUG
-        if ProcessInfo.processInfo.environment["EQS_NOFOCUS"] != nil { studio.searchAsked = nil; return } // screenshots
-        #endif
-        studio.searchAsked = nil
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(150))
-            searchFocus = true
         }
     }
 
