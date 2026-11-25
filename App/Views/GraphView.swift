@@ -348,7 +348,7 @@ struct GraphView: View {
                     studio.selected = id
                     frozenRange = s.range
                 }
-                guard let p = pull, let i = studio.band(p.id), hypot(v.translation.width, v.translation.height) > 2 else { return }
+                guard pinchQ == nil, let p = pull, let i = studio.band(p.id), hypot(v.translation.width, v.translation.height) > 2 else { return }
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let dGain = s.db(v.location.y) - s.db(v.startLocation.y)
                 let ratio = s.freq(v.location.x) / s.freq(v.startLocation.x)
@@ -394,7 +394,7 @@ struct GraphView: View {
                     studio.selected = id
                     frozenRange = s.range
                 }
-                guard dragging == id, let i = studio.band(id), hypot(v.translation.width, v.translation.height) > 2 else { return }
+                guard pinchQ == nil, dragging == id, let i = studio.band(id), hypot(v.translation.width, v.translation.height) > 2 else { return }
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let freq = min(max(s.freq(v.location.x), EQ.freqMin), EQ.freqMax)
                 let gain = min(max(s.db(v.location.y), -EQ.gainMax), EQ.gainMax)
@@ -437,12 +437,13 @@ struct GraphView: View {
             .onEnded { _ in holding = nil }
     }
 
-    /// A pinch widens or narrows the band under the fingers, picking it: the one shaping the sound most
-    /// where the pinch starts (bandAt), so a pinch works with no band picked first.
+    /// A pinch widens or narrows a band: the dot it starts by (within reach), picking it, else the band
+    /// already picked; started away from every dot with none picked, it does nothing. Two fingers never land
+    /// at once, so the first one's drag stands still while a pinch lasts (curveDrag, handleDrag).
     private func pinchGesture(_ s: Scale) -> some Gesture {
         MagnifyGesture()
             .onChanged { v in
-                if pinchQ == nil, let id = bandAt(s.freq(v.startLocation.x)), id != studio.selected { studio.selected = id }
+                if pinchQ == nil, let id = nearest(v.startLocation, s), id != studio.selected { studio.selected = id }
                 guard let i = studio.band(studio.selected), Knob.of(studio.preset.bands[i]) == nil else { return }
                 let id = studio.preset.bands[i].id
                 if pinchQ == nil { pinchQ = studio.preset.bands[i].q }
