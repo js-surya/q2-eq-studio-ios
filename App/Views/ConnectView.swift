@@ -409,12 +409,15 @@ private struct ScanView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, minHeight: 40)
             HStack(spacing: 10) {
-                Button { setTorch(!torch) } label: {
-                    Label(torch ? "Light On" : "Light", systemImage: torch ? "flashlight.on.fill" : "flashlight.off.fill")
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity)
+                // Only where there's a light to turn on: most iPads have none.
+                if Self.torchDevice != nil {
+                    Button { setTorch(!torch) } label: {
+                        Label(torch ? "Light On" : "Light", systemImage: torch ? "flashlight.on.fill" : "flashlight.off.fill")
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.glass)
                 }
-                .buttonStyle(.glass)
                 Button {
                     dismiss()
                     typeInstead()
@@ -442,9 +445,20 @@ private struct ScanView: View {
         }
     }
 
+    /// The back camera with a light: the scanner runs a Pro iPhone's combined camera, so that one first, then
+    /// the single ones; the default video camera isn't always the one with the light. None on most iPads.
+    static var torchDevice: AVCaptureDevice? {
+        AVCaptureDevice.DiscoverySession(deviceTypes: [.builtInTripleCamera, .builtInDualWideCamera, .builtInDualCamera,
+                                                       .builtInWideAngleCamera],
+                                         mediaType: .video, position: .back).devices.first { $0.hasTorch }
+    }
+
     private func setTorch(_ on: Bool) {
-        guard let d = AVCaptureDevice.default(for: .video), d.hasTorch, (try? d.lockForConfiguration()) != nil else { return }
-        d.torchMode = on ? .on : .off
+        guard let d = Self.torchDevice, d.isTorchAvailable || !on, (try? d.lockForConfiguration()) != nil else {
+            if on { studio.say("The light isn't available right now.") }
+            return
+        }
+        if on { try? d.setTorchModeOn(level: AVCaptureDevice.maxAvailableTorchLevel) } else { d.torchMode = .off }
         d.unlockForConfiguration()
         torch = on
     }
