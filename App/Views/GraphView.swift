@@ -236,7 +236,7 @@ struct GraphView: View {
             }
             .coordinateSpace(.named("graph"))
             .contentShape(Rectangle())
-            .simultaneousGesture(edits ? pinchGesture : nil)
+            .simultaneousGesture(edits ? pinchGesture(s) : nil)
             .simultaneousGesture(edits ? doubleTap(s) : nil)
             .gesture(interactive ? holdToInspect(s) : nil) // reading the curve works locked too
             .overlay(alignment: .topTrailing) { if interactive { EditToggle(on: studio.graphEdit) { studio.toggleGraphEdit() } } }
@@ -437,9 +437,12 @@ struct GraphView: View {
             .onEnded { _ in holding = nil }
     }
 
-    private var pinchGesture: some Gesture {
+    /// A pinch widens or narrows the band under the fingers, picking it: the one shaping the sound most
+    /// where the pinch starts (bandAt), so a pinch works with no band picked first.
+    private func pinchGesture(_ s: Scale) -> some Gesture {
         MagnifyGesture()
             .onChanged { v in
+                if pinchQ == nil, let id = bandAt(s.freq(v.startLocation.x)), id != studio.selected { studio.selected = id }
                 guard let i = studio.band(studio.selected), Knob.of(studio.preset.bands[i]) == nil else { return }
                 let id = studio.preset.bands[i].id
                 if pinchQ == nil { pinchQ = studio.preset.bands[i].q }

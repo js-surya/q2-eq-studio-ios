@@ -211,7 +211,8 @@ final class Studio {
     func toggleGraphEdit() {
         graphEdit.toggle()
         buzz(.light)
-        say(graphEdit ? "Drag, pinch and double-tap on the graph to edit it." : "The graph is locked: a touch there won't move the curve.")
+        say(graphEdit ? "Edit on the graph: drag a band to move it, pinch it to make it wider or narrower, double-tap to add one."
+                      : "The graph is locked: a touch there won't move the curve.")
     }
 
     private var history: [Preset] = []
