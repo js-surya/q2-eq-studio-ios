@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var confirmDisconnect = false
     @State private var addAddress = false
     @State private var showAbout = false
+    @State private var showAccent = false
 
     var body: some View {
         @Bindable var studio = studio
@@ -42,34 +43,22 @@ struct SettingsView: View {
             }
             Section {
                 ThemePicker()
-                VStack(alignment: .leading, spacing: 10) {
+                // One row, the colour and its name; the choice on a page of its own, so Settings stays calm.
+                Button { showAccent = true } label: {
                     HStack {
-                        Text("Accent")
+                        Text("Accent").foregroundStyle(.primary)
                         Spacer()
+                        Circle().fill(studio.accent.gradient).frame(width: 14, height: 14)
                         Text(studio.accentChoice.title).foregroundStyle(.secondary)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                     }
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 34), spacing: 10)], spacing: 10) {
-                        ForEach(AccentChoice.allCases) { choice in
-                            let on = studio.accentChoice == choice
-                            Button { withAnimation(.snappy) { studio.accentChoice = choice } } label: {
-                                Circle()
-                                    .fill(choice.color.gradient)
-                                    .frame(width: 30, height: 30)
-                                    .overlay { if on { Image(systemName: "checkmark").font(.caption.bold()).foregroundStyle(.white) } }
-                                    .padding(3)
-                                    .overlay { Circle().strokeBorder(on ? choice.color : .clear, lineWidth: 2) }
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(choice.title)
-                            .accessibilityAddTraits(on ? .isSelected : [])
-                        }
-                    }
+                    .contentShape(Rectangle())
                 }
-                .padding(.vertical, 4)
+                .buttonStyle(.plain)
             } header: {
                 Text("Appearance")
             } footer: {
-                Text("The accent colours the app and the graph's curve and dots. EQ Studio is the page's own blue; bands on the right side alone stay orange.")
+                Text("The accent colours the app, and the graph's curve and dots.")
             }
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)
@@ -97,6 +86,7 @@ struct SettingsView: View {
             if sheet { ToolbarItem(placement: .confirmationAction) { Button("Done", systemImage: "checkmark") { dismiss() } } }
         }
         .navigationDestination(isPresented: $showAbout) { AboutView() }
+        .navigationDestination(isPresented: $showAccent) { AccentPage() }
         #if DEBUG
         .onAppear { if ProcessInfo.processInfo.environment["EQS_TAB"] == "about" { showAbout = true } }
         #endif
@@ -266,5 +256,43 @@ private struct SettingsButton: ViewModifier {
             // Leaving the tab closes it: back on the tab, its own page shows, not Settings (#3).
             .onChange(of: studio.tabSwitched) { if open { open = false } }
             .onAppear { if studio.showSettings { open = true; studio.showSettings = false } }
+    }
+}
+
+/// The accent, chosen on its own page: the graph as it will look, then each colour in a row of its own,
+/// its name beside it, the chosen one ticked.
+struct AccentPage: View {
+    @Environment(Studio.self) private var studio
+
+    var body: some View {
+        List {
+            Section {
+                GraphView(interactive: false, inRow: true)
+                    .frame(height: 170)
+                    .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 4, trailing: 4))
+            } footer: {
+                Text("Bands on the right side alone stay orange.")
+            }
+            Section {
+                ForEach(AccentChoice.allCases) { choice in
+                    let on = studio.accentChoice == choice
+                    Button { withAnimation(.snappy) { studio.accentChoice = choice } } label: {
+                        HStack(spacing: 14) {
+                            Circle().fill(choice.color.gradient).frame(width: 22, height: 22)
+                            Text(choice.title).foregroundStyle(.primary)
+                            Spacer()
+                            if on { Image(systemName: "checkmark").fontWeight(.semibold).foregroundStyle(choice.color) }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+        }
+        .groupedList()
+        .clearOfLiveStatus()
+        .navigationTitle("Accent")
+        .toolbarTitleDisplayMode(.inline)
     }
 }
