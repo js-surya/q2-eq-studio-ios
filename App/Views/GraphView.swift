@@ -239,11 +239,12 @@ struct GraphView: View {
             .simultaneousGesture(edits ? pinchGesture(s) : nil)
             .simultaneousGesture(edits ? doubleTap(s) : nil)
             .gesture(interactive ? holdToInspect(s) : nil) // reading the curve works locked too
-            .overlay(alignment: .topTrailing) { if interactive { EditToggle(on: studio.graphEdit) { studio.toggleGraphEdit() } } }
             .sensoryFeedback(trigger: studio.selected) { _, new in new == nil ? nil : .impact(weight: .light, intensity: 0.6) }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("EQ curve")
             .accessibilityValue(accessibilitySummary(preset))
+            // After the curve's own element, so the pencil is a button of its own to VoiceOver, not hidden in it
+            .overlay(alignment: .topTrailing) { if interactive { EditToggle(on: studio.graphEdit) { studio.toggleGraphEdit() } } }
         }
     }
 
