@@ -138,6 +138,7 @@ struct SignInForm: View {
     @State private var busy = false
     @State private var error: String?
     @FocusState private var field: Field?
+    @State private var scanning = false
     enum Field { case address, pin }
 
     private var ready: Bool { !address.isEmpty && (pin.count == 6 || Q2Link(scanned: address) != nil) }
@@ -154,6 +155,18 @@ struct SignInForm: View {
                             .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
                     }
                     .padding(.top, 8)
+
+                    // Quicker than typing, where there's a camera: the same code the welcome scans.
+                    if DataScannerViewController.isSupported {
+                        Button { field = nil; scanning = true } label: {
+                            Label("Scan the Q2's Code", systemImage: "qrcode.viewfinder")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 2)
+                        }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                    }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Address").font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
@@ -219,7 +232,11 @@ struct SignInForm: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark", role: .cancel) { dismiss() } }
             }
-            .onAppear { field = .address }
+            // The keyboard at once only where there's no scanning: else Scan is in sight first.
+            .onAppear { if !DataScannerViewController.isSupported { field = .address } }
+            .fullScreenCover(isPresented: $scanning) {
+                ScanView(typeInstead: { field = .address }, connected: { dismiss() })
+            }
         }
         .frame(minWidth: 400, minHeight: 520)
     }
@@ -296,6 +313,7 @@ private struct ScanView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var typeInstead: () -> Void = {}
+    var connected: () -> Void = {} // after it signs in: the form it opened from closes too
     @State private var error: String?
     @State private var busy = false
     @State private var done = false
@@ -360,6 +378,7 @@ private struct ScanView: View {
                     try? await Task.sleep(for: .milliseconds(700))
                     studio.connect(link)
                     dismiss()
+                    connected()
                 } catch {
                     busy = false
                     wrong(error.localizedDescription)
