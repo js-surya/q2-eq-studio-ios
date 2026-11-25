@@ -274,7 +274,10 @@ struct ShownBar: View {
         guard let shown = r.shown else { return }
         studio.say("Fitting \(shown.name) to \(r.target)…")
         do {
-            if let (preset, _) = try await r.autoEQ() { studio.load(preset, notes: nil, how: "by AutoEQ") }
+            if let (preset, _) = try await r.autoEQ() {
+                studio.load(preset, notes: nil, how: "by AutoEQ")
+                if shown.by != "its reviewer" { studio.note(source: shown.by, for: studio.preset.name) }
+            }
         } catch {
             if error.localizedDescription.contains("already") { studio.say(error.localizedDescription) } else {
                 studio.tell("AutoEQ couldn't fit it", error.localizedDescription)

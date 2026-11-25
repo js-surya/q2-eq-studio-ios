@@ -76,11 +76,11 @@ struct EQView: View {
             if !studio.outline.name.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
-                    Marquee(text: studio.outline.name)
+                    Marquee(text: studio.outline.name, detail: studio.sources[studio.outline.name])
                 }
                 .padding(.horizontal, 8)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel("Playing \(studio.outline.name)")
+                .accessibilityLabel("Playing \(studio.outline.name)\(studio.sources[studio.outline.name].map { ", from \($0)" } ?? "")")
             }
             GraphView()
                 .frame(minHeight: fill ? 140 : graphHeight, maxHeight: fill ? .infinity : graphHeight)
@@ -548,6 +548,8 @@ private struct Tool: View {
 /// edges faded. With Reduce Motion it stands still, cut short with an ellipsis.
 struct Marquee: View {
     let text: String
+    /// After the name, quieter: whose measurement it came from.
+    var detail: String? = nil
     var font: Font = .headline
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var full: CGFloat = 0
@@ -557,9 +559,14 @@ struct Marquee: View {
     private let speed: CGFloat = 30 // points a second
     private let rest: Double = 1.6 // seconds still at each end
 
+    private var line: Text {
+        guard let detail, !detail.isEmpty else { return Text(text) }
+        return Text("\(Text(text)) \(Text("– \(detail)").fontWeight(.regular).foregroundStyle(Color.secondary))")
+    }
+
     var body: some View {
         let over = max(full - room, 0)
-        Text(text)
+        line
             .font(font)
             .lineLimit(1)
             .truncationMode(.tail)
@@ -575,7 +582,7 @@ struct Marquee: View {
                         // still, out, still, back
                         let phase = t < rest ? 0 : t < rest + travel ? (t - rest) / travel : t < 2 * rest + travel ? 1 : 1 - (t - 2 * rest - travel) / travel
                         let eased = phase * phase * (3 - 2 * phase)
-                        Text(text).font(font).fixedSize().offset(x: -over * eased)
+                        line.font(font).fixedSize().offset(x: -over * eased)
                     }
                     .frame(width: room, alignment: .leading)
                     .clipped()

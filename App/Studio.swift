@@ -524,10 +524,24 @@ final class Studio {
     /// The AutoEq preset applied last, while the EQ is still it: its page says it's playing.
     var playing: String?
 
+    /// Whose measurement each preset came from (AutoEq's source, or the reviewer AutoEQ fitted), by the
+    /// preset's name: shown beside the name, never sent to the Q2 or written in its file. Kept between
+    /// launches, the latest few.
+    private(set) var sources: [String: String] = UserDefaults.standard.dictionary(forKey: "eq.sources") as? [String: String] ?? [:]
+
+    func note(source: String, for name: String) {
+        let s = source.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, !s.isEmpty else { return }
+        sources[name] = s
+        if sources.count > 60 { sources.removeValue(forKey: sources.keys.first { $0 != name } ?? "") }
+        UserDefaults.standard.set(sources, forKey: "eq.sources")
+    }
+
     /// A preset from AutoEq, under its headphone's name.
     func apply(_ entry: Catalogue.Entry) {
         guard case .success(let p) = parse(entry.text, name: entry.name) else { return }
         load(p, notes: nil, how: "from AutoEq")
+        note(source: entry.source, for: preset.name)
         playing = entry.id
     }
 
