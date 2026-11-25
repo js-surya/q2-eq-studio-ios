@@ -36,8 +36,7 @@ struct SearchView: View {
                                     .padding(.horizontal, 14).padding(.vertical, 8)
                                     .foregroundStyle(on ? Color.white : Color.primary)
                             }
-                            .buttonStyle(.plain)
-                            .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .capsule)
+                            .buttonStyle(.glassCapsule(tint: on ? studio.accent : nil))
                         }
                     }
                     .padding(.vertical, 2)

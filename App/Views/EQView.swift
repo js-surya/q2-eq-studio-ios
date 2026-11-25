@@ -540,8 +540,7 @@ private struct Tool: View {
                 .padding(.horizontal, 12).padding(.vertical, 7)
                 .foregroundStyle(on ? Color.white : Color.primary)
         }
-        .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .capsule)
+        .buttonStyle(.glassCapsule(tint: on ? studio.accent : nil))
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 }

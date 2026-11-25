@@ -226,7 +226,13 @@ extension View {
 
 private struct SettingsButton: ViewModifier {
     @Environment(Studio.self) private var studio
+    @Environment(\.horizontalSizeClass) private var width
     @State private var open = false
+
+    /// On an iPad, Settings is a sheet over the tab: pushed, iOS 26 left the tab's large title (Response's,
+    /// over its pinned graph) fading on top of Settings. On an iPhone it's pushed, as before.
+    private var pushed: Binding<Bool> { Binding(get: { open && width != .regular }, set: { open = $0 }) }
+    private var sheet: Binding<Bool> { Binding(get: { open && width == .regular }, set: { open = $0 }) }
 
     func body(content: Content) -> some View {
         content
@@ -235,7 +241,17 @@ private struct SettingsButton: ViewModifier {
                     Button("Settings", systemImage: "gearshape") { open = true }
                 }
             }
-            .navigationDestination(isPresented: $open) { SettingsView() }
+            .navigationDestination(isPresented: pushed) { SettingsView() }
+            .sheet(isPresented: sheet) {
+                NavigationStack {
+                    SettingsView()
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) { Button("Done") { open = false } }
+                        }
+                }
+                .environment(studio)
+                .presentationSizing(.form)
+            }
             .onChange(of: studio.showSettings) { if studio.showSettings { open = true; studio.showSettings = false } }
             // Leaving the tab closes it: back on the tab, its own page shows, not Settings (#3).
             .onChange(of: studio.tabSwitched) { if open { open = false } }

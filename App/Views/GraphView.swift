@@ -476,8 +476,7 @@ private struct EditToggle: View {
                 .foregroundStyle(on ? Color.white : Color.secondary)
                 .frame(width: 32, height: 32)
         }
-        .buttonStyle(.plain)
-        .glassEffect(on ? .regular.tint(studio.accent).interactive() : .regular.interactive(), in: .circle)
+        .buttonStyle(.glassCircle(tint: on ? studio.accent : nil))
         .padding(6)
         .accessibilityLabel("Edit on the graph")
         .accessibilityValue(on ? "On" : "Off, locked")
@@ -533,8 +532,7 @@ private struct UndoButtons: View {
                 .foregroundStyle(on ? Color.primary : Color.secondary.opacity(0.5))
                 .frame(width: 32, height: 32)
         }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .circle)
+        .buttonStyle(.glassCircle())
         .disabled(!on)
         .accessibilityLabel(title)
         .transition(.scale.combined(with: .opacity))
