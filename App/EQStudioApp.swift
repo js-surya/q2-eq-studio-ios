@@ -115,12 +115,19 @@ struct RootView: View {
                 }
             }
         }
-        .onGeometryChange(for: Bool.self) { UIDevice.current.userInterfaceIdiom != .pad || $0.size.width > $0.size.height } action: { sidebar = $0 }
-        // An iPhone Duo folding or unfolding changes the screen: ask its orientations again (Orientations).
-        .onGeometryChange(for: Bool.self) { Orientations.large($0.size) } action: { _ in
-            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-            }
+        // The window's own size, measured past the keyboard: measured inside it, an upright iPad's view grew
+        // wider than tall as the keyboard came up for a search, so the tabs took the sidebar's style and,
+        // rebuilt, closed the search.
+        .background {
+            Color.clear
+                .ignoresSafeArea()
+                .onGeometryChange(for: Bool.self) { UIDevice.current.userInterfaceIdiom != .pad || $0.size.width > $0.size.height } action: { sidebar = $0 }
+                // An iPhone Duo folding or unfolding changes the screen: ask its orientations again (Orientations).
+                .onGeometryChange(for: Bool.self) { Orientations.large($0.size) } action: { _ in
+                    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                        scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+                    }
+                }
         }
         .overlay(alignment: .top) { ToastView() }
         .alert(studio.notice?.title ?? "", isPresented: Binding(get: { studio.notice != nil }, set: { if !$0 { studio.notice = nil } })) {
