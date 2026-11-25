@@ -13,7 +13,9 @@ struct EQView: View {
 
     /// 320 on an iPad, less when the window is short; 230 on an iPhone.
     private var graphHeight: CGFloat {
-        guard width == .regular else { return studio.selected == nil ? 230 : 190 } // a band's card takes room
+        // One height on an iPhone, a band picked or not: a touch on a dot picks its band, and a graph that
+        // shrank then would move its scale under the finger mid-drag.
+        guard width == .regular else { return 210 }
         return height > 0 ? min(320, max(200, height * 0.32)) : 320
     }
 

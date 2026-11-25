@@ -12,7 +12,7 @@ struct BandStrip: View {
         Group {
             if let i = studio.band(studio.selected) {
                 Card(index: i, band: studio.preset.bands[i])
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .transition(.opacity) // fades in where it sits: nothing slides past a finger mid-drag
             }
         }
         .animation(.snappy(duration: 0.28), value: studio.selected == nil)
