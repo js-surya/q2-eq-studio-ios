@@ -91,6 +91,7 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
+        .clearOfLiveStatus()
         .navigationTitle("Settings")
         .toolbar {
             if sheet { ToolbarItem(placement: .confirmationAction) { Button("Done", systemImage: "checkmark") { dismiss() } } }
@@ -172,6 +173,7 @@ struct AboutView: View {
             }
         }
         .formStyle(.grouped)
+        .clearOfLiveStatus()
         .navigationTitle("About")
     }
 }

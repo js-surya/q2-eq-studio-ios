@@ -67,6 +67,7 @@ struct ResponseView: View {
                 .padding(.horizontal, 12).padding(.bottom, 2)
             }
         }
+        .clearOfLiveStatus()
         .navigationTitle("Response")
         .settingsButton()
         .onChange(of: studio.searchAsked) { takeSearch() }

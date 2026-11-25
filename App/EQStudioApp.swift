@@ -231,6 +231,9 @@ extension View {
             .tabBarMinimizeBehavior(.onScrollDown)
     }
 
+    /// Room under a page's last row, so it scrolls clear of the live status floating over the tab bar.
+    func clearOfLiveStatus() -> some View { contentMargins(.bottom, 100, for: .scrollContent) }
+
     /// Settings' look: inset grouped.
     @ViewBuilder func groupedList() -> some View {
         listStyle(.insetGrouped)
