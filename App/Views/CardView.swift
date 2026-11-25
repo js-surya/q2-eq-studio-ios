@@ -120,7 +120,7 @@ struct CardView: View {
             Section {
                 ForEach(Export.all, id: \.self) { e in
                     Button { export(e) } label: {
-                        Label { VStack(alignment: .leading, spacing: 2) { Text(e.title).foregroundStyle(.primary); Text(e.detail).font(.caption).foregroundStyle(.secondary) } }
+                        Label { VStack(alignment: .leading, spacing: 2) { Text(e.title).foregroundStyle(Color.primary); Text(e.detail).font(.caption).foregroundStyle(Color.secondary) } }
                             icon: { Image(systemName: e.icon).foregroundStyle(.tint) }
                     }
                 }
