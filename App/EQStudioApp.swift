@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-// EQ Studio for iPhone, iPhone Duo and iPad: one SwiftUI app. Its tabs are a tab bar on an iPhone and a
-// sidebar where there's room (an iPad, an unfolded iPhone Duo), as the system lays them out.
+// EQ Studio for iPhone, iPhone Duo and iPad: one SwiftUI app. Its tabs are a bar: at the bottom on an iPhone,
+// at the top on an iPad, as the system lays them out on an iPhone Duo.
 import EQCore
 import SwiftUI
 
@@ -35,8 +35,6 @@ struct RootView: View {
     }()
     @State private var showSignIn = false
     @State private var lastLarge: Bool?
-    /// The window wider than tall (or not an iPad).
-    @State private var sidebar = UIDevice.current.userInterfaceIdiom != .pad
 
     enum Tab: Hashable { case eq, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
@@ -47,10 +45,10 @@ struct RootView: View {
             if studio.link == nil && !studio.trying {
                 ConnectView()
             } else {
-                // A sidebar to open only on an iPad on its side: upright, the tabs stay a bar at the top,
-                // with no sidebar button. An iPhone keeps the system's layout.
+                // An iPad's tabs are a bar at the top, every way up, with no sidebar; an iPhone's (and an
+                // iPhone Duo's) are the system's own layout. Fixed per device, so they're never rebuilt.
                 Group {
-                    if sidebar { tabs.tabViewStyle(.sidebarAdaptable) } else { tabs.tabViewStyle(.tabBarOnly) }
+                    if UIDevice.current.userInterfaceIdiom == .pad { tabs.tabViewStyle(.tabBarOnly) } else { tabs.tabViewStyle(.sidebarAdaptable) }
                 }
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
@@ -117,8 +115,7 @@ struct RootView: View {
             }
         }
         // The window's size, read from its scene: a view's shrinks as the keyboard comes up (an upright 11-inch
-        // iPad's went from 820 x 1123 to 820 x 811 for a search), which made the tabs take the sidebar's style
-        // and, rebuilt, close the search. A view's change is only the cue to look again.
+        // iPad's went from 820 x 1123 to 820 x 811 for a search). A view's change is only the cue to look again.
         .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in windowChanged() }
         .onAppear { windowChanged() }
         .overlay(alignment: .top) { ToastView() }
@@ -132,11 +129,9 @@ struct RootView: View {
         .sensoryFeedback(trigger: studio.haptic) { _, event in event?.kind.feedback }
     }
 
-    /// The tabs' style and an iPhone Duo's orientations, from the window scene's own size (Orientations).
+    /// An iPhone Duo's orientations, from the window scene's own size (Orientations).
     private func windowChanged() {
         guard let size = Orientations.windowSize() else { return }
-        let wide = UIDevice.current.userInterfaceIdiom != .pad || size.width > size.height
-        if sidebar != wide { sidebar = wide }
         // An iPhone Duo folding or unfolding changes the screen: ask its orientations again.
         let large = Orientations.large(size)
         if large != lastLarge {
