@@ -488,6 +488,22 @@ extension Color {
     static var rowBackground: Color {
         Color(uiColor: .secondarySystemGroupedBackground)
     }
+
+    /// The page's greys as a full page has them, in a sheet too: a sheet's are its "elevated" ones, which
+    /// in the dark are grey rows on grey (Settings on an iPad), not the app's grey on black.
+    static var groupedBackgroundBase: Color { Color(uiColor: base(.systemGroupedBackground)) }
+    static var rowBackgroundBase: Color { Color(uiColor: base(.secondarySystemGroupedBackground)) }
+
+    private static func base(_ color: UIColor) -> UIColor {
+        UIColor { traits in color.resolvedColor(with: traits.modifyingTraits { $0.userInterfaceLevel = .base }) }
+    }
+}
+
+extension View {
+    /// A grouped list on the base greys (Color.groupedBackgroundBase), its rows given rowBackgroundBase.
+    func basePalette() -> some View {
+        scrollContentBackground(.hidden).background(Color.groupedBackgroundBase)
+    }
 }
 
 /// The graph's tools, in sight under it rather than in a menu: each band's curve, every band off or on,

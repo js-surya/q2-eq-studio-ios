@@ -23,6 +23,7 @@ struct SettingsView: View {
                 } footer: {
                     Text("Without a Q2 the EQ stays on this device. Connect one to hear it, and to reach its card.")
                 }
+                .listRowBackground(Color.rowBackgroundBase)
             }
             if let link = studio.link {
                 Section {
@@ -39,17 +40,20 @@ struct SettingsView: View {
                 } footer: {
                     Text("Away from the Q2's Wi-Fi, add its Tailscale address: Tailscale on the Q2 shows it under Settings → Apps Shared Now.")
                 }
+                .listRowBackground(Color.rowBackgroundBase)
             }
             Section {
                 ThemePicker()
             } header: {
                 Text("Appearance")
             }
+            .listRowBackground(Color.rowBackgroundBase)
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)
             } header: {
                 Text("Graph")
             }
+            .listRowBackground(Color.rowBackgroundBase)
             Section {
                 // Pushed from Settings itself, not by value: Settings is open through its gear's binding,
                 // and a value pushed onto the tab's path would close it again.
@@ -63,8 +67,10 @@ struct SettingsView: View {
                 }
                 .tint(.primary)
             }
+            .listRowBackground(Color.rowBackgroundBase)
         }
         .formStyle(.grouped)
+        .basePalette()
         .clearOfLiveStatus()
         .navigationTitle("Settings")
         .toolbar {
@@ -109,15 +115,18 @@ struct AboutView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
             }
+            .listRowBackground(Color.rowBackgroundBase)
 
             Section("Developer") {
                 Person(login: "js-surya", name: "Surya JS", role: "EQ Studio for iPhone and iPad")
             }
+            .listRowBackground(Color.rowBackgroundBase)
 
             Section("Built On") {
                 Person(login: "DiamondBond", role: "EQ Studio · Q2 Pod")
                 Person(login: "tyleree", role: "Q2 Theme Studio")
             }
+            .listRowBackground(Color.rowBackgroundBase)
 
             Section {
                 ForEach(Acknowledgement.all) { a in
@@ -135,6 +144,7 @@ struct AboutView: View {
             } header: {
                 Text("Acknowledgements")
             }
+            .listRowBackground(Color.rowBackgroundBase)
             .tint(.primary)
 
             Section {
@@ -145,8 +155,10 @@ struct AboutView: View {
             } footer: {
                 Text("EQ Studio for iPhone and iPad is free software under the GPL-3.0, as EQ Studio is. Not affiliated with Shanling.")
             }
+            .listRowBackground(Color.rowBackgroundBase)
         }
         .formStyle(.grouped)
+        .basePalette()
         .clearOfLiveStatus()
         .navigationTitle("About")
     }
@@ -243,12 +255,7 @@ private struct SettingsButton: ViewModifier {
             }
             .navigationDestination(isPresented: pushed) { SettingsView() }
             .sheet(isPresented: sheet) {
-                NavigationStack {
-                    SettingsView()
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) { Button("Done") { open = false } }
-                        }
-                }
+                NavigationStack { SettingsView(sheet: true) }
                 .environment(studio)
                 .presentationSizing(.form)
             }
