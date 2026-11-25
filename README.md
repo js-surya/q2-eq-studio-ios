@@ -39,7 +39,7 @@
 ## Features
 
 **Shape**
-- The curve: drag a dot or the curve itself, pinch for a band's width, double-tap to add a band, touch and hold to read it
+- The curve: drag a dot or the curve itself, double-tap to add a band, touch and hold to read it; a band's width (Q) in its card or the table
 - Up to 30 bands (peak, low or high shelf, on both sides or one), Auto or fixed preamp, balance
 - Bass and Treble as Poweramp's knobs, each band's own curve, bypass, undo and redo
 - Haptics at each dB, at 0 dB and at the limits

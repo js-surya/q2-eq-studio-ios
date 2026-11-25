@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // The EQ's curve, as EQ Studio's page draws it: 20 Hz to 20 kHz on a log scale, the dB range following
 // the curve and the dots (12 to 30 dB, in steps of 6) but standing still through a drag. Drag a dot to
-// move its band, pinch for the picked band's Q, double-tap to add a band there.
+// move its band, double-tap to add a band there, touch and hold to read the curve.
 import EQCore
 import SwiftUI
 
@@ -11,7 +11,6 @@ struct GraphView: View {
 
     @State private var dragging: Band.ID?
     @State private var frozenRange: Double?
-    @State private var pinchQ: Double?
     @State private var pull: Pull? // the band a pull on the curve took, and where it started
 
     private struct Pull {
@@ -66,7 +65,7 @@ struct GraphView: View {
         let split = points.contains { abs($0.left - $0.right) > 0.01 }
         let faded = !still && studio.live.on && studio.live.mode != "peq" // the Q2 isn't playing it
         let picked = still ? nil : studio.band(studio.selected)
-        let edits = interactive && studio.graphEdit // drags, pinches and double-taps: only with the pencil on
+        let edits = interactive && studio.graphEdit // drags and double-taps: only with the pencil on
 
         GeometryReader { geo in
             let g = still ? EdgeInsets(top: 46, leading: 40, bottom: 30, trailing: 24) : GraphView.gap
@@ -75,7 +74,7 @@ struct GraphView: View {
             // What the drawing needs, taken here: it's drawn off the main thread, so it reads none of the
             // studio or the view's state itself.
             let eachBand = studio.showEachBand
-            let crossing = dragging != nil || pinchQ != nil
+            let crossing = dragging != nil
             let pointer = holding
             let dots = Dots(picked: picked, hovered: still || dragging != nil ? nil : hover.flatMap { nearest($0, s) }, background: dotBackground)
             ZStack {
@@ -236,7 +235,6 @@ struct GraphView: View {
             }
             .coordinateSpace(.named("graph"))
             .contentShape(Rectangle())
-            .simultaneousGesture(edits ? pinchGesture(s) : nil)
             .simultaneousGesture(edits ? doubleTap(s) : nil)
             .gesture(interactive ? holdToInspect(s) : nil) // reading the curve works locked too
             .sensoryFeedback(trigger: studio.selected) { _, new in new == nil ? nil : .impact(weight: .light, intensity: 0.6) }
@@ -349,7 +347,7 @@ struct GraphView: View {
                     studio.selected = id
                     frozenRange = s.range
                 }
-                guard pinchQ == nil, let p = pull, let i = studio.band(p.id), hypot(v.translation.width, v.translation.height) > 2 else { return }
+                guard let p = pull, let i = studio.band(p.id), hypot(v.translation.width, v.translation.height) > 2 else { return }
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let dGain = s.db(v.location.y) - s.db(v.startLocation.y)
                 let ratio = s.freq(v.location.x) / s.freq(v.startLocation.x)
@@ -395,7 +393,7 @@ struct GraphView: View {
                     studio.selected = id
                     frozenRange = s.range
                 }
-                guard pinchQ == nil, dragging == id, let i = studio.band(id), hypot(v.translation.width, v.translation.height) > 2 else { return }
+                guard dragging == id, let i = studio.band(id), hypot(v.translation.width, v.translation.height) > 2 else { return }
                 let knob = Knob.of(studio.preset.bands[i]) != nil
                 let freq = min(max(s.freq(v.location.x), EQ.freqMin), EQ.freqMax)
                 let gain = min(max(s.db(v.location.y), -EQ.gainMax), EQ.gainMax)
@@ -436,28 +434,6 @@ struct GraphView: View {
                 }
             }
             .onEnded { _ in holding = nil }
-    }
-
-    /// A pinch widens or narrows a band: the dot it starts by (within reach), picking it, else the band
-    /// already picked; started away from every dot with none picked, it does nothing. Two fingers never land
-    /// at once, so the first one's drag stands still while a pinch lasts (curveDrag, handleDrag).
-    private func pinchGesture(_ s: Scale) -> some Gesture {
-        MagnifyGesture()
-            .onChanged { v in
-                if pinchQ == nil, let id = nearest(v.startLocation, s), id != studio.selected { studio.selected = id }
-                guard let i = studio.band(studio.selected), Knob.of(studio.preset.bands[i]) == nil else { return }
-                let id = studio.preset.bands[i].id
-                if pinchQ == nil { pinchQ = studio.preset.bands[i].q }
-                // Spread the fingers for a wider band (a lower Q), as a pinch zooms out.
-                let q = min(max(pinchQ! / Double(v.magnification), EQ.qMin), EQ.qMax)
-                let was = studio.preset.bands[i].q
-                if (q >= EQ.qMax && was < EQ.qMax) || (q <= EQ.qMin && was > EQ.qMin) { studio.buzz(.limit) }
-                else if Int(log2(q) * 4) != Int(log2(was) * 4) { studio.buzz(.tick) }
-                studio.change("q-\(id)") { p in
-                    if let k = p.bands.firstIndex(where: { $0.id == id }) { p.bands[k].q = (q * 100).rounded() / 100 }
-                }
-            }
-            .onEnded { _ in pinchQ = nil }
     }
 
     private func doubleTap(_ s: Scale) -> some Gesture {

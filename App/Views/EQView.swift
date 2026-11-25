@@ -112,8 +112,8 @@ struct EQView: View {
         } footer: {
             if showBands {
                 Text(studio.graphEdit
-                     ? "Drag a dot or the curve to move a band. Pinch a band to make it wider or narrower (its Q). Double-tap to add a band. Touch and hold to read the curve."
-                     : "The graph is locked, so a touch there won't move the curve: tap its pencil to drag, pinch and double-tap there. Touch and hold to read it.")
+                     ? "Drag a dot or the curve to move a band. Double-tap to add a band. Touch and hold to read the curve."
+                     : "The graph is locked, so a touch there won't move the curve: tap its pencil to drag and double-tap there. Touch and hold to read it.")
             }
         }
 

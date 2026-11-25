@@ -202,8 +202,8 @@ final class Studio {
     var showEachBand = UserDefaults.standard.bool(forKey: "eq.eachBand") {
         didSet { UserDefaults.standard.set(showEachBand, forKey: "eq.eachBand") }
     }
-    /// The graph takes drags, pinches and double-taps: off (locked) until the pencil on it turns it on, so a
-    /// stray touch never moves the curve. Kept between launches. The card, the table and the keys still edit.
+    /// The graph takes drags and double-taps: off (locked) until the pencil on it turns it on, so a
+    /// stray touch never moves the curve. Kept between launches. The card and the table still edit.
     var graphEdit = UserDefaults.standard.bool(forKey: "eq.graphEdit") {
         didSet { UserDefaults.standard.set(graphEdit, forKey: "eq.graphEdit") }
     }
@@ -211,7 +211,7 @@ final class Studio {
     func toggleGraphEdit() {
         graphEdit.toggle()
         buzz(.light)
-        say(graphEdit ? "Edit on the graph: drag a band to move it, pinch it to make it wider or narrower, double-tap to add one."
+        say(graphEdit ? "Edit on the graph: drag a band to move it, double-tap to add one."
                       : "The graph is locked: a touch there won't move the curve.")
     }
 
