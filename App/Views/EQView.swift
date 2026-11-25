@@ -21,13 +21,15 @@ struct EQView: View {
         GeometryReader { geo in
             // An iPhone Duo's inner display: nothing that takes a touch on the fold, as Apple's guidelines ask.
             // A fold top to bottom splits the tab in two, the graph and its band on one side, the bands on
-            // the other; one across puts the graph above it and the bands below. Elsewhere, one column.
-            if let fold = Self.fold(geo), fold.height > fold.width {
+            // the other; one across puts the graph above it and the bands below. An iPad on its side splits
+            // the same way, so the graph takes the screen's height rather than a third of it. Elsewhere, one
+            // column.
+            if let split = Self.fold(geo).flatMap({ $0.height > $0.width ? $0 : nil }) ?? sideways(geo) {
                 HStack(spacing: 0) {
-                    // Half the width: the band's card as an iPhone's (menus, a row a value)
-                    header(fill: true, room: 76).frame(width: fold.minX).clipped().environment(\.horizontalSizeClass, .compact)
-                    Color.clear.frame(width: fold.width)
-                    list(table: false) // half the width: rows, not the table
+                    // Part of the width: the band's card as an iPhone's (menus, a row a value)
+                    header(fill: true, room: 76).frame(width: split.minX).clipped().environment(\.horizontalSizeClass, .compact)
+                    Color.clear.frame(width: split.width)
+                    list(table: false) // the rest of the width: rows, not the table
                 }
                 .background(Color.groupedBackground)
             } else if let fold = Self.fold(geo) {
@@ -152,6 +154,13 @@ struct EQView: View {
     .groupedList()
     // Room under the last row, so it scrolls clear of the tab bar and the live status.
     .contentMargins(.bottom, 120, for: .scrollContent)
+    }
+
+    /// Where a wide screen on its side (an iPad's, an unfolded Duo's without a fold reported) splits: the graph's
+    /// side three fifths of it, a gap after it; nil upright or narrow.
+    private func sideways(_ g: GeometryProxy) -> CGRect? {
+        guard width == .regular, g.size.width > g.size.height * 1.15, g.size.width >= 900 else { return nil }
+        return CGRect(x: (g.size.width * 0.58).rounded(), y: 0, width: 16, height: g.size.height)
     }
 
     /// The least width the bands' table fits in (its columns at their least, the list's insets); narrower, rows.
