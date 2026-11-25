@@ -51,10 +51,7 @@ private struct Card: View {
                 }
                 .disabled(knob != nil)
                 Spacer(minLength: 8)
-                // Delete away from ✕ and named, so a near miss on close never deletes the band
-                Button("Delete", systemImage: "trash", role: .destructive) { studio.deleteBand(band.id) }
-                    .buttonStyle(.borderless) // red words, no fill: as a list's destructive action
-                    .font(.subheadline.weight(.medium))
+                deleteButton
             }
             .pickerStyle(.menu)
             .buttonStyle(.bordered)
@@ -89,17 +86,13 @@ private struct Card: View {
     private var wide: some View {
         let knob = Knob.of(band)
         return VStack(alignment: .leading, spacing: 14) {
-            // One line where it fits; the type and side under the name where it doesn't (Split View).
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 14) {
-                    title(knob)
+            // As an iPhone's: close alone at the top right, Delete named and apart from it, after type and side.
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 14) { title(knob); Spacer(minLength: 8); close }
+                HStack(spacing: 10) {
+                    pickers(knob)
                     Spacer(minLength: 8)
-                    pickers(knob).fixedSize()
-                    actions
-                }
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 14) { title(knob); Spacer(minLength: 8); actions }
-                    HStack(spacing: 10) { pickers(knob) }
+                    deleteButton
                 }
             }
 
@@ -173,18 +166,13 @@ private struct Card: View {
             .fixedSize()
     }
 
-    private var actions: some View {
-        HStack(spacing: 6) {
-            Button("Delete Band", systemImage: "trash", role: .destructive) { studio.deleteBand(band.id) }
-                .tint(.red)
-            Button("Done", systemImage: "xmark") { studio.selected = nil }
-                .tint(.secondary)
-                .help("Done")
-        }
-        .labelStyle(.iconOnly)
-        .buttonStyle(.bordered)
-        .buttonBorderShape(.circle)
-        .fixedSize()
+    /// Delete away from ✕ and named, so a near miss on close never deletes the band: red words, no fill, as
+    /// a list's destructive action.
+    private var deleteButton: some View {
+        Button("Delete", systemImage: "trash", role: .destructive) { studio.deleteBand(band.id) }
+            .buttonStyle(.borderless)
+            .font(.subheadline.weight(.medium))
+            .fixedSize()
     }
 
     @ViewBuilder private func values(_ knob: Knob?) -> some View {
