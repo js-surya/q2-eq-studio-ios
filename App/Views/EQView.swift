@@ -340,15 +340,7 @@ private struct EQToolbar: ToolbarContent {
 
     var body: some ToolbarContent {
         @Bindable var studio = studio
-        ToolbarItemGroup(placement: .primaryAction) {
-            Button("Undo", systemImage: "arrow.uturn.backward") { studio.undo() }
-                .disabled(!studio.canUndo)
-                .keyboardShortcut("z", modifiers: .command)
-            Button("Redo", systemImage: "arrow.uturn.forward") { studio.redo() }
-                .disabled(!studio.canRedo)
-                .keyboardShortcut("z", modifiers: [.command, .shift])
-
-        }
+        // Undo and redo are on the graph (GraphView's UndoButtons).
         if studio.live.on {
             ToolbarItem(placement: .navigation) {
                 Toggle(isOn: Binding(get: { studio.eqOn }, set: { studio.setMode($0) })) {

@@ -243,6 +243,8 @@ struct GraphView: View {
             .accessibilityValue(accessibilitySummary(preset))
             // After the curve's own element, so the pencil is a button of its own to VoiceOver, not hidden in it
             .overlay(alignment: .topTrailing) { if interactive { EditToggle(on: studio.graphEdit) { studio.toggleGraphEdit() } } }
+            // Undo and redo by the curve they change, while there's something to undo (any edit, locked or not)
+            .overlay(alignment: .topLeading) { if interactive { UndoButtons().padding(.leading, GraphView.gap.leading - 6) } }
         }
     }
 
@@ -501,5 +503,40 @@ extension View {
             }
             self
         }
+    }
+}
+
+/// Undo and redo at the graph's top left, as small as its pencil: shown while either has something to do,
+/// for every edit (the curve, the card, the table, a preset, Reset), the graph locked or not. Command-Z and
+/// Shift-Command-Z with them. Their own view, so the graph doesn't redraw as the history changes.
+private struct UndoButtons: View {
+    @Environment(Studio.self) private var studio
+
+    var body: some View {
+        let undo = studio.canUndo, redo = studio.canRedo
+        HStack(spacing: 6) {
+            if undo || redo {
+                button("Undo", "arrow.uturn.backward", undo) { studio.undo() }
+                    .keyboardShortcut("z", modifiers: .command)
+                button("Redo", "arrow.uturn.forward", redo) { studio.redo() }
+                    .keyboardShortcut("z", modifiers: [.command, .shift])
+            }
+        }
+        .padding(6)
+        .animation(.snappy, value: undo || redo)
+    }
+
+    private func button(_ title: String, _ icon: String, _ on: Bool, _ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(on ? Color.primary : Color.secondary.opacity(0.5))
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .disabled(!on)
+        .accessibilityLabel(title)
+        .transition(.scale.combined(with: .opacity))
     }
 }
