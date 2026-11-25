@@ -27,31 +27,7 @@ struct ResponseView: View {
         let narrowing = !query.isEmpty && r.everyLoaded
         List {
             Section {
-                Picker("Measured by", selection: Binding(get: { site?.id ?? r.site }, set: { r.site = $0; movedFrom = nil })) {
-                    if let sites = r.sites {
-                        ForEach(Squig.kinds, id: \.kind) { kind in
-                            let group = sites.filter { $0.kind == kind.kind && (!narrowing || counts[$0.id] != nil || $0.id == site?.id) }
-                            if !group.isEmpty {
-                                Section(kind.title) {
-                                    ForEach(group) { s in
-                                        Text(narrowing ? "\(s.name) · \(counts[s.id] ?? 0)" : s.name).tag(s.id)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Text(r.error == nil ? "Loading…" : "Not loaded").tag(r.site)
-                    }
-                }
-                .disabled(r.sites == nil)
-                Picker("Target", selection: Binding(get: { r.target }, set: { r.target = $0 })) {
-                    Text("None").tag("")
-                    ForEach(Squig.targetKinds, id: \.kind) { kind in
-                        Section(kind.title) {
-                            ForEach(Squig.targets.filter { $0.kind == kind.kind }) { Text($0.name).tag($0.name) }
-                        }
-                    }
-                }
+                if width != .regular { pickers(r, site, counts: counts, narrowing: narrowing) } // else held with the graph
             } footer: {
                 Text(note(r, site, phones, found, counts: narrowing ? counts : nil))
             }
@@ -81,7 +57,14 @@ struct ResponseView: View {
         .pinnedGraph(width == .regular) {
             VStack(spacing: 6) {
                 GraphView(interactive: false, inRow: true).frame(height: 220)
-                ShownBar().padding(.horizontal, 12).padding(.bottom, 6)
+                ShownBar().padding(.horizontal, 12)
+                // Who measured and the target stay in reach too, as the list scrolls under them.
+                Divider().padding(.horizontal, 12)
+                VStack(spacing: 0) {
+                    LabeledContent("Measured by") { sitePicker(r, site, counts: counts, narrowing: narrowing).labelsHidden() }
+                    LabeledContent("Target") { targetPicker(r).labelsHidden() }
+                }
+                .padding(.horizontal, 12).padding(.bottom, 2)
             }
         }
         .navigationTitle("Response")
@@ -104,6 +87,43 @@ struct ResponseView: View {
         .task(id: query.isEmpty) { if !query.isEmpty { await r.loadEvery() } }
         .onChange(of: counts) { follow(counts) }
         .onChange(of: query.isEmpty) { if query.isEmpty { movedFrom = nil } }
+    }
+
+    /// Who measured and the target: rows of the list on an iPhone, labelled rows under the graph where it's held.
+    @ViewBuilder private func pickers(_ r: Response, _ site: Squig.Site?, counts: [String: Int], narrowing: Bool) -> some View {
+        sitePicker(r, site, counts: counts, narrowing: narrowing)
+        targetPicker(r)
+    }
+
+    private func sitePicker(_ r: Response, _ site: Squig.Site?, counts: [String: Int], narrowing: Bool) -> some View {
+        Picker("Measured by", selection: Binding(get: { site?.id ?? r.site }, set: { r.site = $0; movedFrom = nil })) {
+            if let sites = r.sites {
+                ForEach(Squig.kinds, id: \.kind) { kind in
+                    let group = sites.filter { $0.kind == kind.kind && (!narrowing || counts[$0.id] != nil || $0.id == site?.id) }
+                    if !group.isEmpty {
+                        Section(kind.title) {
+                            ForEach(group) { s in
+                                Text(narrowing ? "\(s.name) · \(counts[s.id] ?? 0)" : s.name).tag(s.id)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(r.error == nil ? "Loading…" : "Not loaded").tag(r.site)
+            }
+        }
+        .disabled(r.sites == nil)
+    }
+
+    private func targetPicker(_ r: Response) -> some View {
+        Picker("Target", selection: Binding(get: { r.target }, set: { r.target = $0 })) {
+            Text("None").tag("")
+            ForEach(Squig.targetKinds, id: \.kind) { kind in
+                Section(kind.title) {
+                    ForEach(Squig.targets.filter { $0.kind == kind.kind }) { Text($0.name).tag($0.name) }
+                }
+            }
+        }
     }
 
     private func note(_ r: Response, _ site: Squig.Site?, _ phones: [Squig.Phone]?, _ found: [Squig.Phone],
