@@ -79,6 +79,7 @@ struct RootView: View {
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 // Presets opens with the cursor in its search box.
                 .onChange(of: tab) {
+                    studio.tabSwitched += 1
                     if tab == .search { studio.searchAsked = UUID() }
                     // Response opens ready to type, as Presets does.
                     if tab == .response { studio.responseSearchAsked = UUID() }

@@ -54,6 +54,7 @@ struct CardView: View {
                                 Text(file.date, format: .relative(presentation: .named))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
+                            Spacer(minLength: 0) // the whole row takes the tap, not its words alone (#3)
                         }
                         .contentShape(Rectangle())
                     }

@@ -265,6 +265,8 @@ private struct SettingsButton: ViewModifier {
             }
             .navigationDestination(isPresented: $open) { SettingsView() }
             .onChange(of: studio.showSettings) { if studio.showSettings { open = true; studio.showSettings = false } }
+            // Leaving the tab closes it: back on the tab, its own page shows, not Settings (#3).
+            .onChange(of: studio.tabSwitched) { if open { open = false } }
             .onAppear { if studio.showSettings { open = true; studio.showSettings = false } }
     }
 }

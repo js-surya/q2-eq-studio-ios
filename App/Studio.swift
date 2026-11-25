@@ -59,6 +59,7 @@ final class Studio {
     var inspect = false
     var showKeys = false
     var showSettings = false // the EQ tab's gear, on an iPhone and an iPad
+    var tabSwitched = 0 // a tab was left: its Settings page closes, so the tab opens on its own page again (#3)
     var pasteAsked = false // the EQ tab's menu: the Paste sheet
     var cardAsked: String? // ⌘S or ⌘O from anywhere: the Card tab saves or opens
     var searchAsked: UUID? // / asked for the presets' search
