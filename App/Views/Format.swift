@@ -50,19 +50,14 @@ enum Format {
 /// A band's colour, as the page has it (web/style.css, light and dark): the accent, orange for the right
 /// side alone, faint when off; the picked dot filled with the accent's fill.
 enum BandColor {
-    /// The graph's colour: the app's accent (Color.accentColor follows the chosen one), which with EQ Studio
-    /// chosen is EQ Studio's blue.
-    static let accent = Color.accentColor
-    /// EQ Studio's own blue, by name, whatever accent is chosen.
-    static let studio = Color("AccentColor")
-    /// The chosen accent, set by Studio: EQ Studio's gives the picked dot the page's own fill, Orange's
-    /// clashes with the right side's orange (blue then), Graphite's with off bands' grey (fainter then).
-    nonisolated(unsafe) static var choice = AccentChoice.studio
-    static var right: Color { choice == .orange ? studio : Color("RightSide") }
-    static var faint: Color { choice == .graphite ? Color("Faint").opacity(0.45) : Color("Faint") }
+    /// EQ Studio's page's colours (web/style.css), light and dark, in the asset catalogue: the curve and dots
+    /// --accent, a picked dot --accent-fill, a band on the right side alone --right, a band off --faint.
+    static let accent = Color("AccentColor")
     static let fill = Color("AccentFill")
+    static let right = Color("RightSide")
+    static let faint = Color("Faint")
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : accent }
-    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : choice == .studio ? fill : accent }
+    static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : fill }
 }
 
 /// The app's haptics, as Apple's patterns name them.
@@ -94,24 +89,3 @@ struct HapticEvent: Equatable {
 }
 
 /// The app's accent choices: EQ Studio's blue first, then iOS's own colours.
-enum AccentChoice: String, CaseIterable, Identifiable {
-    case studio, lively, indigo, purple, pink, red, orange, yellow, green, mint, teal, graphite
-    var id: String { rawValue }
-    var title: String { self == .studio ? "EQ Studio" : rawValue.capitalized }
-    var color: Color {
-        switch self {
-        case .studio: BandColor.studio
-        case .lively: Color(red: 0x1D / 255, green: 0xB9 / 255, blue: 0x54 / 255) // a bright green, #1DB954
-        case .indigo: .indigo
-        case .purple: .purple
-        case .pink: .pink
-        case .red: .red
-        case .orange: .orange
-        case .yellow: .yellow
-        case .green: .green
-        case .mint: .mint
-        case .teal: .teal
-        case .graphite: .gray
-        }
-    }
-}

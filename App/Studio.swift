@@ -64,14 +64,8 @@ final class Studio {
     var responseSearchAsked: UUID? // the Response tab opened: its search takes the keyboard
     var cellFocus: CellFocus? // the band table's cell Return moved to
 
-    /// The app's accent, kept between launches; the graph keeps EQ Studio's own colours whatever it is.
-    var accentChoice = AccentChoice(rawValue: UserDefaults.standard.string(forKey: "eq.accent") ?? "") ?? .studio {
-        didSet {
-            UserDefaults.standard.set(accentChoice.rawValue, forKey: "eq.accent")
-            BandColor.choice = accentChoice
-        }
-    }
-    var accent: Color { accentChoice.color }
+    /// The app's one accent: EQ Studio's own blue, the page's --accent.
+    var accent: Color { BandColor.accent }
 
     private static let storeKey = "eq-studio"
     private static let tryingKey = "eq.trying"
@@ -106,7 +100,7 @@ final class Studio {
             preset = normalize(kept)
         }
         work()
-        BandColor.choice = accentChoice
+        UserDefaults.standard.removeObject(forKey: "eq.accent") // an accent chosen in builds 1 to 8 goes
     }
 
     /// The EQ is kept once edits settle, not on each step of a drag: every write to the defaults redraws

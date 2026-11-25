@@ -58,7 +58,7 @@
 - Hear it live, EQ on or off on the Q2, and what went wrong with a retry
 - No Q2 at hand? **Try Without a Q2** edits the EQ on the phone, with Presets and Response
 - Sign in by scanning the Q2's code or with its PIN; on your Wi-Fi or over [Tailscale](https://github.com/js-surya/q2-tailscale), whichever answers
-- Light or dark, an accent of your choice
+- Light or dark, in EQ Studio's own colours: its blue, orange for a band on the right side alone, grey for a band off
 
 ## Download
 
