@@ -11,75 +11,69 @@ struct ConnectView: View {
     @State private var shown = false
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 30) {
-                Spacer(minLength: 36)
-                ZStack {
-                    Circle()
-                        .fill(studio.accent.opacity(0.35))
-                        .frame(width: 170, height: 170)
-                        .blur(radius: 40)
-                    Image("StudioIcon")
-                        .resizable()
-                        .frame(width: 118, height: 118)
-                        .shadow(color: .black.opacity(0.25), radius: 14, y: 10)
-                }
-                .scaleEffect(shown ? 1 : 0.85)
-                .opacity(shown ? 1 : 0)
-                .accessibilityHidden(true)
-
-                VStack(spacing: 10) {
-                    Text("EQ Studio").font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    Text("Shape your Q2's sound,\nand hear it as you go.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .opacity(shown ? 1 : 0)
-
-                VStack(alignment: .leading, spacing: 18) {
-                    Step(icon: "app.badge", text: "On the Q2, open **EQ Studio** in Library → Apps.")
-                    Step(icon: "wifi", text: "Keep this device on the **same Wi-Fi** as the Q2.")
-                    Step(icon: "qrcode", text: "**Scan the code** it shows, or type the address and PIN under it.")
-                }
-                .padding(22)
-                .frame(maxWidth: 440, alignment: .leading)
-                .glassEffect(.regular, in: .rect(cornerRadius: 28))
-                .offset(y: shown ? 0 : 16)
-                .opacity(shown ? 1 : 0)
-
-                VStack(spacing: 12) {
-                    if DataScannerViewController.isSupported {
-                        Button { scanning = true } label: {
-                            Label("Scan Code", systemImage: "qrcode.viewfinder")
+        // The icon and name in the middle of the screen, what to do at its foot, in reach of a thumb: one
+        // hint, one button, two quiet links. The backdrop drifts behind; it scrolls only when type is large.
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer(minLength: 40)
+                    VStack(spacing: 22) {
+                        ZStack {
+                            Circle()
+                                .fill(studio.accent.opacity(0.35))
+                                .frame(width: 170, height: 170)
+                                .blur(radius: 40)
+                            Image("StudioIcon")
+                                .resizable()
+                                .frame(width: 112, height: 112)
+                                .shadow(color: .black.opacity(0.25), radius: 14, y: 10)
+                        }
+                        .scaleEffect(shown ? 1 : 0.85)
+                        .accessibilityHidden(true)
+                        VStack(spacing: 8) {
+                            Text("EQ Studio").font(.system(.largeTitle, design: .rounded, weight: .bold))
+                            Text("Shape your Q2's sound, and hear it as you go.")
+                                .font(.body)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                    }
+                    .opacity(shown ? 1 : 0)
+                    Spacer(minLength: 40)
+                    VStack(spacing: 16) {
+                        Text("Open **EQ Studio** on the Q2 under Library → Apps, on the same Wi-Fi as this device.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                        let scans = DataScannerViewController.isSupported
+                        Button { if scans { scanning = true } else { typing = true } } label: {
+                            Label(scans ? "Scan the Q2's Code" : "Enter Address and PIN",
+                                  systemImage: scans ? "qrcode.viewfinder" : "keyboard")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 4)
                         }
                         .buttonStyle(.glassProminent)
                         .controlSize(.extraLarge)
-                    }
-                    Button { typing = true } label: {
-                        Label("Enter Address and PIN", systemImage: "keyboard")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 2)
-                    }
-                    .buttonStyle(.glass)
-                    .controlSize(.large)
-                    Button("Try Without a Q2") { studio.tryWithoutQ2() }
+                        HStack(spacing: 14) {
+                            if scans {
+                                Button("Enter Address and PIN") { typing = true }
+                                Text("·").foregroundStyle(.tertiary).accessibilityHidden(true)
+                            }
+                            Button("Try Without a Q2") { studio.tryWithoutQ2() }
+                        }
                         .font(.subheadline.weight(.medium))
-                        .padding(.top, 2)
-                    Label("Away from home? Use the Q2's Tailscale address.", systemImage: "point.3.connected.trianglepath.dotted")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 4)
+                        .buttonStyle(.borderless)
+                    }
+                    .frame(maxWidth: 420)
+                    .offset(y: shown ? 0 : 16)
+                    .opacity(shown ? 1 : 0)
+                    .padding(.bottom, 24)
                 }
-                .frame(maxWidth: 440)
-                .opacity(shown ? 1 : 0)
-                Spacer(minLength: 20)
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, minHeight: geo.size.height)
             }
-            .padding(.horizontal, 24)
-            .frame(maxWidth: .infinity)
         }
         .scrollBounceBehavior(.basedOnSize)
         .background { Backdrop() }
@@ -124,7 +118,7 @@ private struct Backdrop: View {
                     for i in 0...120 {
                         let x = size.width * CGFloat(i) / 120
                         let p = Double(i) / 120 * .pi * 2
-                        let y = size.height * 0.72 + CGFloat(sin(p * 1.5 + t / 2) * 26 + sin(p * 3.7 - t / 3) * 12)
+                        let y = size.height * 0.66 + CGFloat(sin(p * 1.5 + t / 2) * 26 + sin(p * 3.7 - t / 3) * 12)
                         i == 0 ? path.move(to: CGPoint(x: x, y: y)) : path.addLine(to: CGPoint(x: x, y: y))
                     }
                     ctx.stroke(path, with: .color(b.opacity(dark ? 0.35 : 0.3)), style: StrokeStyle(lineWidth: 3, lineCap: .round))
@@ -133,22 +127,6 @@ private struct Backdrop: View {
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)
-    }
-}
-
-private struct Step: View {
-    @Environment(Studio.self) private var studio
-    let icon: String
-    let text: LocalizedStringKey
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image(systemName: icon)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 34, height: 34)
-                .background(studio.accent.gradient, in: .rect(cornerRadius: 10))
-            Text(text).fixedSize(horizontal: false, vertical: true)
-        }
     }
 }
 
