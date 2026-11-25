@@ -26,10 +26,15 @@ struct EQView: View {
             // column.
             if let split = Self.fold(geo).flatMap({ $0.height > $0.width ? $0 : nil }) ?? sideways(geo) {
                 HStack(spacing: 0) {
-                    // Part of the width: the band's card as an iPhone's (menus, a row a value)
-                    header(fill: true, room: 76).frame(width: split.minX).clipped().environment(\.horizontalSizeClass, .compact)
+                    // The graph and its tools on one side, the graph the whole height and never resized: the
+                    // picked band's card (an iPhone's) heads the other side, over the bands, so a drag that
+                    // picks a band doesn't shrink the graph under the finger.
+                    header(fill: true, room: 76, card: false).frame(width: split.minX).clipped()
                     Color.clear.frame(width: split.width)
-                    list(table: false) // the rest of the width: rows, not the table
+                    VStack(spacing: 0) {
+                        BandStrip().padding(.horizontal, 12).padding(.top, 8).environment(\.horizontalSizeClass, .compact)
+                        list(table: false) // the rest of the width: rows, not the table
+                    }
                 }
                 .background(Color.groupedBackground)
             } else if let fold = Self.fold(geo) {
