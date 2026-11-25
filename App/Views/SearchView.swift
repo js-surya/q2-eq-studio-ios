@@ -235,6 +235,9 @@ struct PresetPage: View {
     @Environment(\.horizontalSizeClass) private var width
     let entry: Catalogue.Entry
     let applied: () -> Void
+    @State private var saving = false
+    @State private var name = ""
+    @State private var taken: String?
 
     /// The two lines' key, under the graph.
     private var legend: some View {
@@ -301,20 +304,60 @@ struct PresetPage: View {
         .navigationTitle(entry.name)
         .toolbarTitleDisplayMode(.inline)
         .safeAreaInset(edge: .bottom) {
-            Button {
-                studio.apply(entry)
-                applied()
-            } label: {
-                Label(playing ? "Playing on the Q2" : "Apply", systemImage: playing ? "checkmark.circle.fill" : "play.fill")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
+            VStack(spacing: 10) {
+                // With a Q2, the preset can go on its card as it is, without playing it first.
+                if studio.link != nil && preset != nil {
+                    Button {
+                        name = entry.name
+                        saving = true
+                    } label: {
+                        Label("Save to the Card", systemImage: "sdcard")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                    }
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
+                }
+                Button {
+                    studio.apply(entry)
+                    applied()
+                } label: {
+                    Label(playing ? "Playing on the Q2" : "Apply", systemImage: playing ? "checkmark.circle.fill" : "play.fill")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 4)
+                }
+                .buttonStyle(.glassProminent)
+                .controlSize(.large)
+                .disabled(playing || preset == nil)
             }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
-            .disabled(playing || preset == nil)
             .padding(.horizontal, 20)
             .padding(.bottom, 8)
+        }
+        .alert("Save to the Card", isPresented: $saving) {
+            TextField("Name", text: $name)
+            Button("Cancel", role: .cancel) {}
+            Button("Save") { save(preset, replace: false) }
+        } message: {
+            Text("It goes in the card's EQ folder as \(fileName(name)). The EQ playing stays as it is.")
+        }
+        .confirmationDialog("“\(taken ?? "")” is already on the card.", isPresented: Binding(get: { taken != nil }, set: { if !$0 { taken = nil } }),
+                            titleVisibility: .visible) {
+            Button("Replace", role: .destructive) { save(preset, replace: true) }
+        }
+    }
+
+    private func save(_ preset: Preset?, replace: Bool) {
+        guard let preset else { return }
+        Task {
+            switch await studio.saveToCard(preset, as: name, source: entry.source, replace: replace) {
+            case .saved:
+                studio.buzz(.success)
+                studio.say("“\(cleanName(name))” is saved to the card.")
+            case .taken: taken = fileName(name)
+            case .failed(let why): studio.tell("It couldn't be saved", why)
+            }
         }
     }
 }

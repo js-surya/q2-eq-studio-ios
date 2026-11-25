@@ -636,6 +636,23 @@ final class Studio {
         }
     }
 
+    /// A preset other than the one playing (one from AutoEq, looked at before it's applied) saved to the
+    /// card under a name; the EQ playing doesn't change.
+    func saveToCard(_ p: Preset, as name: String, source: String?, replace: Bool = false) async -> SaveOutcome {
+        guard let client else { return .failed(Q2Error.unreachable.localizedDescription) }
+        let clean = cleanName(name)
+        var named = p
+        named.name = clean
+        do {
+            guard try await client.cardPut(fileName(clean), text: serialize(named), replace: replace) else { return .taken }
+            if let source { note(source: source, for: clean) }
+            await loadCard()
+            return .saved
+        } catch {
+            return .failed(error.localizedDescription)
+        }
+    }
+
     func delete(_ file: CardFile) async -> String? {
         guard let client else { return Q2Error.unreachable.localizedDescription }
         do {
