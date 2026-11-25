@@ -34,6 +34,7 @@ struct RootView: View {
         return .eq
     }()
     @State private var showSignIn = false
+    @State private var lastLarge: Bool?
     /// The window wider than tall (or not an iPad).
     @State private var sidebar = UIDevice.current.userInterfaceIdiom != .pad
 
@@ -115,20 +116,11 @@ struct RootView: View {
                 }
             }
         }
-        // The window's own size, measured past the keyboard: measured inside it, an upright iPad's view grew
-        // wider than tall as the keyboard came up for a search, so the tabs took the sidebar's style and,
-        // rebuilt, closed the search.
-        .background {
-            Color.clear
-                .ignoresSafeArea()
-                .onGeometryChange(for: Bool.self) { UIDevice.current.userInterfaceIdiom != .pad || $0.size.width > $0.size.height } action: { sidebar = $0 }
-                // An iPhone Duo folding or unfolding changes the screen: ask its orientations again (Orientations).
-                .onGeometryChange(for: Bool.self) { Orientations.large($0.size) } action: { _ in
-                    for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
-                        scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-                    }
-                }
-        }
+        // The window's size, read from its scene: a view's shrinks as the keyboard comes up (an upright 11-inch
+        // iPad's went from 820 x 1123 to 820 x 811 for a search), which made the tabs take the sidebar's style
+        // and, rebuilt, close the search. A view's change is only the cue to look again.
+        .onGeometryChange(for: CGSize.self) { $0.size } action: { _ in windowChanged() }
+        .onAppear { windowChanged() }
         .overlay(alignment: .top) { ToastView() }
         .alert(studio.notice?.title ?? "", isPresented: Binding(get: { studio.notice != nil }, set: { if !$0 { studio.notice = nil } })) {
             Button("OK") {}
@@ -138,6 +130,21 @@ struct RootView: View {
         .preferredColorScheme(theme == "light" ? .light : theme == "dark" ? .dark : nil)
         .tint(studio.accent)
         .sensoryFeedback(trigger: studio.haptic) { _, event in event?.kind.feedback }
+    }
+
+    /// The tabs' style and an iPhone Duo's orientations, from the window scene's own size (Orientations).
+    private func windowChanged() {
+        guard let size = Orientations.windowSize() else { return }
+        let wide = UIDevice.current.userInterfaceIdiom != .pad || size.width > size.height
+        if sidebar != wide { sidebar = wide }
+        // An iPhone Duo folding or unfolding changes the screen: ask its orientations again.
+        let large = Orientations.large(size)
+        if large != lastLarge {
+            lastLarge = large
+            for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+                scene.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            }
+        }
     }
 
     /// The four tabs; how they're shown is the body's to say.
@@ -309,4 +316,11 @@ final class Orientations: NSObject, UIApplicationDelegate {
     /// A screen too big to be a phone's in the hand: an unfolded iPhone Duo (669 x 951 points); the largest
     /// iPhone is 440 wide.
     static func large(_ size: CGSize) -> Bool { min(size.width, size.height) >= 600 }
+
+    /// The foreground window scene's size, which the keyboard never changes.
+    @MainActor static func windowSize() -> CGSize? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
+        return scene?.effectiveGeometry.coordinateSpace.bounds.size
+    }
 }
