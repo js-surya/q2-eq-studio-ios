@@ -140,7 +140,7 @@ private struct Card: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .font(.body.weight(.semibold))
-            .help("Previous or next band ([ and ])")
+            .help("Previous or next band")
             Toggle("On", isOn: field(\.on, "on"))
                 .fixedSize()
                 .padding(.leading, 4)
@@ -166,7 +166,7 @@ private struct Card: View {
     private var close: some View {
         Button("Done", systemImage: "xmark") { studio.selected = nil }
             .tint(.secondary)
-            .help("Done (Esc)")
+            .help("Done")
             .labelStyle(.iconOnly)
             .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
@@ -179,7 +179,7 @@ private struct Card: View {
                 .tint(.red)
             Button("Done", systemImage: "xmark") { studio.selected = nil }
                 .tint(.secondary)
-                .help("Done (Esc)")
+                .help("Done")
         }
         .labelStyle(.iconOnly)
         .buttonStyle(.bordered)

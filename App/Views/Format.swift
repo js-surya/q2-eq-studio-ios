@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
 import EQCore
-import GameController
 import SwiftUI
 
 enum Format {
@@ -64,41 +63,6 @@ enum BandColor {
     static let fill = Color("AccentFill")
     static func of(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : accent }
     static func picked(_ band: Band) -> Color { !band.on ? faint : band.channel == .right ? right : choice == .studio ? fill : accent }
-}
-
-/// What this device is: keys and a pointer are an iPad's, not a phone's.
-enum Device {
-    /// An iPad with a mouse or trackpad, now: what Inspect's line follows without a touch. A finger reads the
-    /// curve by touching and holding, so without one Inspect has nothing to add. Never an iPhone, which can
-    /// report a pointer too (iPhone Mirroring from a Mac).
-    @MainActor static var hasPointer: Bool { isPad && Peripherals.shared.mouse }
-    /// An iPad with a keyboard or a mouse, now: what the Keyboard and Mouse sheet is about.
-    @MainActor static var hasKeyboard: Bool { isPad && (Peripherals.shared.keyboard || Peripherals.shared.mouse) }
-    @MainActor private static var isPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
-}
-
-/// Which keyboards and mice are connected, kept up to date as they come and go, so the views showing
-/// Inspect and the keys redraw with them.
-@MainActor @Observable final class Peripherals {
-    static let shared = Peripherals()
-    private(set) var mouse = false
-    private(set) var keyboard = false
-
-    private init() {
-        update()
-        let names: [Notification.Name] = [.GCMouseDidConnect, .GCMouseDidDisconnect, .GCKeyboardDidConnect, .GCKeyboardDidDisconnect]
-        for name in names {
-            NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { _ in
-                Task { @MainActor in Peripherals.shared.update() }
-            }
-        }
-    }
-
-    private func update() {
-        let m = !GCMouse.mice().isEmpty, k = GCKeyboard.coalesced != nil
-        if mouse != m { mouse = m }
-        if keyboard != k { keyboard = k }
-    }
 }
 
 /// The app's haptics, as Apple's patterns name them.

@@ -338,11 +338,6 @@ private struct EQToolbar: ToolbarContent {
             Button("Redo", systemImage: "arrow.uturn.forward") { studio.redo() }
                 .disabled(!studio.canRedo)
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-            if Device.hasKeyboard {
-                Menu("More", systemImage: "ellipsis") {
-                    Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true }
-                }
-            }
 
         }
         if studio.live.on {
@@ -461,12 +456,6 @@ private struct Cell: View {
             }
             .onChange(of: studio.cellFocus) { if studio.cellFocus == CellFocus(row: row, column: column) { focus = studio.cellFocus } }
             .onChange(of: focus) { if focus == nil { commit() } }
-            .onKeyPress(keys: [.upArrow, .downArrow]) { press in
-                let v = min(max(step(value, press.key == .upArrow, press.modifiers.contains(.shift)), range.lowerBound), range.upperBound)
-                set(v)
-                text = decimal(v, digits)
-                return .handled
-            }
     }
 
     private var shown: String { decimal(value, digits) }
@@ -494,7 +483,7 @@ extension Color {
 }
 
 /// The graph's tools, in sight under it rather than in a menu: each band's curve, every band off or on,
-/// Inspect and Fit where there's a pointer, Copy, Paste and Start Over.
+/// Copy, Paste and Start Over.
 private struct ToolStrip: View {
     @Environment(Studio.self) private var studio
     @State private var confirmReset = false
@@ -505,15 +494,11 @@ private struct ToolStrip: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Tool(title: "Bands", icon: "point.3.connected.trianglepath.dotted", on: studio.showEachBand) { studio.showEachBand.toggle() }
-                    .help("Each band's own curve (V)")
+                    .help("Each band's own curve")
                 Tool(title: allOff ? "Bypassed" : "Bypass", icon: allOff ? "speaker.slash.fill" : "speaker.slash", on: allOff) {
                     studio.change { p in for k in p.bands.indices { p.bands[k].on = allOff } }
                 }
-                .help("Every band off, or on (B)")
-                if Device.hasPointer {
-                    Tool(title: "Inspect", icon: "scope", on: studio.inspect) { studio.inspect.toggle() }
-                        .help("A line at the pointer, and the gain there (Space)")
-                }
+                .help("Every band off, or on")
                 Tool(title: "Copy", icon: "doc.on.doc", on: false) { studio.copyEQ() }
                     .help("The EQ as a preset's text")
                 Tool(title: "Paste", icon: "doc.on.clipboard", on: false) { studio.pasteAsked = true }

@@ -73,14 +73,10 @@ struct SettingsView: View {
             }
             Section {
                 Toggle("Each Band's Curve", isOn: $studio.showEachBand)
-                if Device.hasPointer { Toggle("Inspect", isOn: $studio.inspect) }
             } header: {
                 Text("Graph")
-            } footer: {
-                if Device.hasPointer { Text("Inspect shows a line where the pointer is on the graph, and the gain there.") }
             }
             Section {
-                if Device.hasKeyboard { Button("Keyboard and Mouse", systemImage: "keyboard") { studio.showKeys = true } }
                 // Pushed from Settings itself, not by value: Settings is open through its gear's binding,
                 // and a value pushed onto the tab's path would close it again.
                 Button { showAbout = true } label: {

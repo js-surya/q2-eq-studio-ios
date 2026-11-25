@@ -50,7 +50,7 @@ struct GraphView: View {
     /// In a list's row (Presets, Response), whose background is the row's.
     var inRow = false
     @State private var hover: CGPoint?
-    /// Touch and hold: Inspect while the finger stays down, where it is.
+    /// Touch and hold: the curve read while the finger stays down, where it is.
     @State private var holding: CGPoint?
 
     var body: some View {
@@ -76,7 +76,7 @@ struct GraphView: View {
             // studio or the view's state itself.
             let eachBand = studio.showEachBand
             let crossing = dragging != nil || pinchQ != nil
-            let pointer = holding ?? (studio.inspect ? hover : nil)
+            let pointer = holding
             let dots = Dots(picked: picked, hovered: still || dragging != nil ? nil : hover.flatMap { nearest($0, s) }, background: dotBackground)
             ZStack {
                 // Drawn off the main thread on screen: beside the band inspector a drag otherwise waited on
@@ -145,7 +145,7 @@ struct GraphView: View {
                         ctx.fill(Path(ellipseIn: CGRect(x: c.x - 26, y: c.y - 26, width: 52, height: 52)), with: .color(BandColor.of(b).opacity(0.18)))
                     }
                     drawDots(ctx, s, preset, dots)
-                    // Inspect: a line where the pointer is, and a dot on each side's curve there.
+                    // Touch and hold: a line where the finger is, and a dot on each side's curve there.
                     if let h = pointer, s.rect.contains(h) {
                         var v = Path()
                         v.move(to: CGPoint(x: h.x, y: s.rect.minY)); v.addLine(to: CGPoint(x: h.x, y: s.rect.maxY))
@@ -178,7 +178,7 @@ struct GraphView: View {
                     .padding(.top, still ? 48 : 14).padding(.trailing, 28)
                     .allowsHitTesting(false)
                 }
-                if let h = holding ?? (studio.inspect ? hover : nil), s.rect.contains(h), !still {
+                if let h = holding, s.rect.contains(h), !still {
                     let f = s.freq(h.x)
                     let r = response(preset, at: f, rate: rate)
                     let m = shown.map { Squig.at($0.points, f) }
@@ -499,7 +499,7 @@ private struct EditToggle: View {
         .accessibilityLabel("Edit on the graph")
         .accessibilityValue(on ? "On" : "Off, locked")
         .accessibilityAddTraits(on ? .isSelected : [])
-        .help("Edit on the graph, or lock it (L)")
+        .help("Edit on the graph, or lock it")
     }
 }
 

@@ -38,7 +38,6 @@ struct RootView: View {
 
     enum Tab: Hashable { case eq, response, card, search }
     @AppStorage("eq-studio-theme") private var theme = "system"
-    @FocusState private var keys: Bool
 
     var body: some View {
         Group {
@@ -53,28 +52,6 @@ struct RootView: View {
                 .liveStatus { LiveStatus(signIn: { showSignIn = true }) }
                 .task { await studio.readState(first: true) }
                 .task { if let note = await studio.response.restore() { studio.say(note) } }
-                .focusable()
-                .focusEffectDisabled()
-                .focused($keys)
-                .defaultFocus($keys, true)
-                .onKeyPress(phases: [.down, .repeat]) { press in
-                    if press.modifiers.contains(.command) || press.modifiers.contains(.control) || press.modifiers.contains(.option) { return .ignored }
-                    let name: String
-                    switch press.key {
-                    case .leftArrow: name = "left"
-                    case .rightArrow: name = "right"
-                    case .upArrow: name = "up"
-                    case .downArrow: name = "down"
-                    case .delete, .deleteForward: name = "delete"
-                    case .escape: name = "escape"
-                    case .space: name = " "
-                    default: name = press.characters.lowercased()
-                    }
-                    let handled = studio.key(name, shift: press.modifiers.contains(.shift), again: press.phase == .repeat) { i in
-                        tab = [Tab.eq, .search, .response, .card][i]
-                    }
-                    return handled ? .handled : .ignored
-                }
                 .onChange(of: studio.searchAsked) { if studio.searchAsked != nil && tab != .response { tab = .search } }
                 .onChange(of: studio.cardAsked) { if studio.cardAsked != nil { tab = .card } }
                 // Presets opens with the cursor in its search box.
@@ -92,7 +69,6 @@ struct RootView: View {
                 .onAppear { if ProcessInfo.processInfo.environment["EQS_SETTINGS"] != nil { studio.showSettings = true } }
                 .task { if ProcessInfo.processInfo.environment["EQS_TOAST"] != nil { try? await Task.sleep(for: .seconds(2)); studio.say("“Meze Alba” is playing.", undo: true) } }
                 #endif
-                .sheet(isPresented: Binding(get: { studio.showKeys }, set: { studio.showKeys = $0 })) { KeysSheet() }
                 .sheet(isPresented: Binding(get: { studio.pasteAsked }, set: { studio.pasteAsked = $0 })) { PasteSheet() }
 
                 .onChange(of: phase) {

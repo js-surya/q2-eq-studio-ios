@@ -56,8 +56,6 @@ final class Studio {
     var rate: Double = UserDefaults.standard.object(forKey: "eq.rate") as? Double ?? 48000 {
         didSet { UserDefaults.standard.set(rate, forKey: "eq.rate"); work() }
     }
-    var inspect = false
-    var showKeys = false
     var showSettings = false // the EQ tab's gear, on an iPhone and an iPad
     var tabSwitched = 0 // a tab was left: its Settings page closes, so the tab opens on its own page again (#3)
     var pasteAsked = false // the EQ tab's menu: the Paste sheet
