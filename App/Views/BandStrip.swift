@@ -45,10 +45,12 @@ private struct Card: View {
                 Picker("Type", selection: field(\.type, "type")) {
                     ForEach(FilterType.allCases, id: \.self) { Text(Format.typeName($0)) }
                 }
+                .fixedSize() // "Low Shelf" on one line
                 .disabled(knob != nil)
                 Picker("Side", selection: field(\.channel, "channel")) {
                     ForEach(Channel.allCases, id: \.self) { Text(Format.channelName($0)) }
                 }
+                .fixedSize()
                 .disabled(knob != nil)
                 Spacer(minLength: 8)
                 deleteButton
@@ -224,10 +226,13 @@ private struct Param: View {
         Group {
             if row {
                 HStack(spacing: 10) {
+                    // One width for each column, every row: the sliders start and end together.
                     Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                        .frame(width: 76, alignment: .leading)
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .frame(width: 84, alignment: .leading)
                     Slider(value: slider, in: log ? log10(range.lowerBound)...log10(range.upperBound) : range)
                     TypedNumber(value: value, range: range, digits: digits, unit: unit, width: 58, set: set)
+                        .frame(width: 96, alignment: .trailing)
                 }
             } else {
                 VStack(alignment: .leading, spacing: 6) {
