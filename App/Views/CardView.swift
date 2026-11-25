@@ -23,17 +23,17 @@ struct CardView: View {
     var body: some View {
         List {
             Section {
-                Button("Save to the Card…", systemImage: "square.and.arrow.down") { askSave() }
+                Button { askSave() } label: { ActionRow(title: "Save to the Card…", icon: "square.and.arrow.down", enabled: studio.link != nil) }
                     .keyboardShortcut("s", modifiers: .command)
                     .disabled(studio.link == nil)
                 // The same preset file, kept on this device or in iCloud Drive, with or without a Q2.
-                Button("Save to Files…", systemImage: "folder.badge.plus") { saveToFiles() }
+                Button { saveToFiles() } label: { ActionRow(title: "Save to Files…", icon: "folder.badge.plus") }
                     .keyboardShortcut("s", modifiers: [.command, .shift])
             } footer: {
                 if studio.live.local {
-                    Text("This Q2 Pod can't take the EQ live. Save it here, then on the Q2 open the EQ page's Import from SD /EQ.")
+                    Text("This Q2 Pod can't play the EQ live. Save it to the card, then on the Q2 open EQ → Import from SD.")
                 } else {
-                    Text("Save to Files keeps the preset on this \(UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone") or in iCloud Drive; Open File brings it back.")
+                    Text("Save to Files keeps it on this \(UIDevice.current.userInterfaceIdiom == .pad ? "iPad" : "iPhone") or in iCloud Drive.")
                 }
             }
 
@@ -103,31 +103,31 @@ struct CardView: View {
             }
 
             Section {
-                Button("Open File…", systemImage: "folder") { importing = true }
+                Button { importing = true } label: { ActionRow(title: "Open File…", icon: "folder") }
                     .keyboardShortcut("o", modifiers: .command)
                 ShareLink(item: PresetFile(name: fileName(studio.preset.name), text: studio.text),
                           preview: SharePreview(fileName(studio.preset.name))) {
-                    Label("Share This EQ", systemImage: "square.and.arrow.up")
+                    ActionRow(title: "Share This EQ", icon: "square.and.arrow.up")
                 }
-                Button("Copy", systemImage: "doc.on.doc") { studio.copyEQ() }
-                Button("Paste", systemImage: "doc.on.clipboard") { pasting = true }
+                Button { studio.copyEQ() } label: { ActionRow(title: "Copy", icon: "doc.on.doc") }
+                Button { pasting = true } label: { ActionRow(title: "Paste", icon: "doc.on.clipboard") }
             } header: {
                 Text("This EQ")
             } footer: {
-                Text("Open file and Paste take a preset's text, as Equalizer APO, AutoEq and PEQdB write it, or a preset exported from Poweramp, with its Bass and Treble. So does a file dropped on the window.")
+                Text("Open File and Paste take presets from Equalizer APO, AutoEq, PEQdB and Poweramp.")
             }
 
             Section {
                 ForEach(Export.all, id: \.self) { e in
                     Button { export(e) } label: {
                         Label { VStack(alignment: .leading, spacing: 2) { Text(e.title).foregroundStyle(.primary); Text(e.detail).font(.caption).foregroundStyle(.secondary) } }
-                            icon: { Image(systemName: e.icon) }
+                            icon: { Image(systemName: e.icon).foregroundStyle(.tint) }
                     }
                 }
             } header: {
                 Text("For other apps")
             } footer: {
-                Text("The curve the Q2 plays, as other EQs take it.")
+                Text("The curve the Q2 plays, ready for other EQ apps.")
             }
         }
         .clearOfLiveStatus()
@@ -363,5 +363,21 @@ struct PasteSheet: View {
             }
         }
         .frame(minWidth: 420, minHeight: 360)
+    }
+}
+
+/// An action's row, as Settings and Files draw one: its words in the text's colour, its symbol in the
+/// accent, greyed while it can't be done; a page of them reads as a list, not a wall of links.
+private struct ActionRow: View {
+    let title: String
+    let icon: String
+    var enabled = true
+
+    var body: some View {
+        Label {
+            Text(title).foregroundStyle(enabled ? Color.primary : Color.secondary)
+        } icon: {
+            Image(systemName: icon).foregroundStyle(enabled ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+        }
     }
 }
