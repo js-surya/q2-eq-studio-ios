@@ -16,6 +16,9 @@ struct CardView: View {
     @State private var importing = false
     @State private var pasting = false
     @State private var exportFile: ExportFile?
+    @State private var find = "" // the card's presets: words to find one by
+    @State private var all = false // every preset, not just the latest saved
+    private static let latest = 5
 
     var body: some View {
         List {
@@ -34,7 +37,7 @@ struct CardView: View {
                 }
             }
 
-            Section("On the Card") {
+            Section {
                 if studio.link == nil {
                     Label("Connect a Q2 to see the presets on its card.", systemImage: "sdcard").foregroundStyle(.secondary)
                     Button("Connect a Q2", systemImage: "qrcode.viewfinder") { studio.trying = false }
@@ -43,7 +46,29 @@ struct CardView: View {
                 } else if studio.cardFiles.isEmpty && !studio.cardLoading {
                     Text("No presets in the card's EQ folder yet.").foregroundStyle(.secondary)
                 }
-                ForEach(studio.cardFiles) { file in
+                let files = studio.cardFiles
+                let words = Response.words(find)
+                // The latest saved first, five of them; a search looks through them all, dashes, spaces and
+                // capitals aside, as Response's does; Show All lists every one by name.
+                let found = words.isEmpty ? (all ? files : Array(files.sorted { $0.mtime > $1.mtime }.prefix(Self.latest)))
+                    : files.filter { f in let key = Response.squash(f.name); return words.allSatisfy { key.contains($0) } }
+                if files.count > Self.latest {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+                        TextField("Find a preset on the card", text: $find)
+                            .autocorrectionDisabled()
+                            .textInputAutocapitalization(.never)
+                            .submitLabel(.search)
+                        if !find.isEmpty {
+                            Button("Clear", systemImage: "xmark.circle.fill") { find = "" }
+                                .labelStyle(.iconOnly).foregroundStyle(.secondary).buttonStyle(.borderless)
+                        }
+                    }
+                }
+                if !words.isEmpty && found.isEmpty {
+                    Text("No preset on the card matches.").foregroundStyle(.secondary)
+                }
+                ForEach(found) { file in
                     Button {
                         Task { _ = await studio.open(file) }
                     } label: {
@@ -67,6 +92,14 @@ struct CardView: View {
                         Button("Delete", systemImage: "trash", role: .destructive) { deleting = file }
                     }
                 }
+                if words.isEmpty && files.count > Self.latest {
+                    Button(all ? "Show the Latest \(Self.latest)" : "Show All \(files.count) Presets") {
+                        withAnimation(.snappy) { all.toggle() }
+                    }
+                    .font(.subheadline.weight(.medium))
+                }
+            } header: {
+                Text(all || !find.isEmpty || studio.cardFiles.count <= Self.latest ? "On the Card" : "Latest on the Card")
             }
 
             Section {
@@ -97,6 +130,7 @@ struct CardView: View {
                 Text("The curve the Q2 plays, as other EQs take it.")
             }
         }
+        .clearOfLiveStatus()
         .navigationTitle("Card")
         .settingsButton()
         .onAppear(perform: asked)
