@@ -54,7 +54,7 @@ struct ResponseView: View {
                 }
             }
         }
-        .pinnedGraph(width == .regular) {
+        .pinnedGraph(width == .regular, title: "Response") {
             VStack(spacing: 6) {
                 GraphView(interactive: false, inRow: true).frame(height: 220)
                 ShownBar().padding(.horizontal, 12)

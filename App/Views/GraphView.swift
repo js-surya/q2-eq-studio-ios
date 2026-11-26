@@ -488,20 +488,33 @@ private struct EditToggle: View {
 extension View {
     /// A graph held over a list where there's room (an iPad, an unfolded iPhone Duo): the list scrolls under
     /// it, as the EQ tab's graph stays. Elsewhere the list keeps it as its first row.
-    /// Stacked above the list as the EQ tab's is (a top inset lost the page's large title).
-    func pinnedGraph<G: View>(_ on: Bool, @ViewBuilder _ graph: () -> G) -> some View {
+    /// Stacked above the list as the EQ tab's is (a top inset lost the page's large title). With the graph held,
+    /// `title` is drawn large above it, in the part that stays, and the bar's own title is taken away: the bar's
+    /// large title follows the list's scroll, so a pull or a scroll slid it down over the graph.
+    func pinnedGraph<G: View>(_ on: Bool, title: LocalizedStringKey? = nil, @ViewBuilder _ graph: () -> G) -> some View {
         VStack(spacing: 0) {
             if on {
-                graph()
-                    .padding(4)
-                    .background(Color.rowBackground, in: .rect(cornerRadius: 22, style: .continuous))
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 8)
-                    .frame(maxWidth: .infinity)
-                    .background(Color.groupedBackground)
+                VStack(alignment: .leading, spacing: 0) {
+                    if let title {
+                        Text(title)
+                            .font(.largeTitle.bold())
+                            .accessibilityAddTraits(.isHeader)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 4)
+                    }
+                    graph()
+                        .padding(4)
+                        .background(Color.rowBackground, in: .rect(cornerRadius: 22, style: .continuous))
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity)
+                }
+                .background(Color.groupedBackground)
             }
             self
         }
+        .toolbarTitleDisplayMode(on && title != nil ? .inline : .automatic)
+        .toolbar(removing: on && title != nil ? .title : nil)
     }
 }
 

@@ -101,7 +101,7 @@ struct SearchView: View {
                 }
             }
         }
-        .pinnedGraph(width == .regular) { GraphView(interactive: false, inRow: true).frame(height: 200) }
+        .pinnedGraph(width == .regular, title: "Presets") { GraphView(interactive: false, inRow: true).frame(height: 200) }
         .clearOfLiveStatus()
         .navigationTitle("Presets")
         .settingsButton()
