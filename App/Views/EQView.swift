@@ -59,6 +59,8 @@ struct EQView: View {
         // The graph gives way on a short window (an iPad mini on its side), so the bands keep room.
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
         .navigationTitle("EQ Studio")
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar(removing: .title) // drawn in the header instead
         .settingsButton()
         .toolbar { EQToolbar() }
         .alert("Bass and Treble", isPresented: Binding(get: { note != nil }, set: { if !$0 { note = nil } })) {
@@ -75,6 +77,13 @@ struct EQView: View {
     /// card: the picked band's card under the tools (else it goes under the fold, over the bands).
     private func header(fill: Bool = false, room: CGFloat = 8, card: Bool = true) -> some View {
         VStack(spacing: 6) {
+            // The page's title, in the part that stays: the bar's large title follows the list's scroll, so a
+            // pull or a scroll slid it down over the graph. The bar's own title is taken away (body).
+            Text("EQ Studio")
+                .font(.largeTitle.bold())
+                .accessibilityAddTraits(.isHeader)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 8)
             if !studio.outline.name.isEmpty {
                 HStack(spacing: 6) {
                     Image(systemName: "slider.vertical.3").font(.footnote.weight(.semibold)).foregroundStyle(.tint)
